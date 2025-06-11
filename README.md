@@ -6,6 +6,17 @@ A modern web-based implementation of the classic Werewolf party game, featuring 
 
 This is an interactive Werewolf game that allows human players to play against AI-controlled players. The game features a beautiful user interface built with React and includes various game phases, player roles, and interactive voting mechanics.
 
+## Screenshots
+
+![Game Interface](screenshots/game-interface.png)
+*Main game interface showing the player cards and game log*
+
+![Voting Phase](screenshots/voting-phase.png)
+*Voting phase with player interactions*
+
+![Night Phase](screenshots/night-phase.png)
+*Night phase with role actions*
+
 ## Features
 
 - 🎮 Real-time game mechanics
@@ -96,6 +107,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 项目概述
 
 这是一个互动性强的狼人杀游戏，允许人类玩家与AI控制的玩家进行对战。游戏采用React构建，具有美观的用户界面，包含多个游戏阶段、玩家角色和互动投票机制。
+
+## 游戏截图
+
+![游戏界面](screenshots/game-interface.png)
+*主游戏界面，显示玩家卡片和游戏日志*
+
+![投票阶段](screenshots/voting-phase.png)
+*投票阶段的玩家互动*
+
+![夜晚阶段](screenshots/night-phase.png)
+*夜晚阶段的角色行动*
 
 ## 主要特点
 
