@@ -42,6 +42,29 @@ The game follows a structured sequence of phases:
 
 - Node.js (v14 or higher)
 - npm or yarn
+- A Google Gemini API key (for AI players functionality)
+
+### API Configuration
+
+To enable AI players, you need to configure the Google Gemini API:
+
+1. **Get a Gemini API Key:**
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Sign in with your Google account
+   - Create a new API key
+   - Copy the generated API key
+
+2. **Configure Environment Variables:**
+   - Copy `.env.example` to `.env` in the root directory
+   - Add your Gemini API key to the `.env` file:
+   ```
+   REACT_APP_GEMINI_API_KEY=your_api_key_here
+   ```
+
+**Important Notes:**
+- The Gemini API may not be available in all regions. If you encounter geographic restrictions, consider using a VPN or alternative AI service.
+- Keep your API key secure and never commit it to version control.
+- The API key is required for AI players to function. Without it, only human players will be available.
 
 ### Installation
 
@@ -58,14 +81,16 @@ npm install
 yarn install
 ```
 
-3. Start the development server:
+3. Configure your environment variables (see API Configuration section above)
+
+4. Start the development server:
 ```bash
 npm start
 # or
 yarn start
 ```
 
-4. Open your browser and navigate to `http://localhost:3000`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ## How to Play
 
@@ -144,6 +169,29 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Node.js (v14或更高版本)
 - npm 或 yarn
+- Google Gemini API密钥（用于AI玩家功能）
+
+### API配置
+
+要启用AI玩家功能，需要配置Google Gemini API：
+
+1. **获取Gemini API密钥：**
+   - 访问 [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - 使用Google账户登录
+   - 创建新的API密钥
+   - 复制生成的API密钥
+
+2. **配置环境变量：**
+   - 将`.env.example`复制为根目录下的`.env`文件
+   - 在`.env`文件中添加你的Gemini API密钥：
+   ```
+   REACT_APP_GEMINI_API_KEY=your_api_key_here
+   ```
+
+**重要说明：**
+- Gemini API可能不在所有地区可用。如果遇到地理限制，可考虑使用VPN或替代AI服务。
+- 请保护好你的API密钥，切勿将其提交到版本控制中。
+- API密钥是AI玩家功能必需的。没有它，只能使用人类玩家。
 
 ### 安装步骤
 
@@ -160,14 +208,16 @@ npm install
 yarn install
 ```
 
-3. 启动开发服务器：
+3. 配置环境变量（参见上面的API配置部分）
+
+4. 启动开发服务器：
 ```bash
 npm start
 # 或
 yarn start
 ```
 
-4. 在浏览器中访问 `http://localhost:3000`
+5. 在浏览器中访问 `http://localhost:3000`
 
 ## 游戏玩法
 
