@@ -1,4 +1,5 @@
 import { ROLES, GAME_PHASES } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Role icons mapping
 const ROLE_ICONS = {
@@ -25,6 +26,7 @@ const PlayerCard = ({
   players,
   onPlayerAction 
 }) => {
+  const { t } = useLanguage();
   // Get vote count for this player
   const voteCount = Object.values(currentVotes).filter(v => v === player.id).length;
   
@@ -116,13 +118,13 @@ const PlayerCard = ({
           {player.isAlive ? (
             <div className="flex items-center">
               <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-green-300 font-medium">存活</span>
+              <span className="text-green-300 font-medium">{t('playerCard.alive')}</span>
             </div>
           ) : (
             <div className="flex items-center">
               <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
               <span className="text-red-400 font-medium">
-                已淘汰 ({player.revealedRole || '未知身份'})
+                {t('playerCard.eliminated')} ({player.revealedRole || t('playerCard.unknownRole')})
               </span>
             </div>
           )}
@@ -132,7 +134,7 @@ const PlayerCard = ({
         {humanPlayer?.role === ROLES.SEER && seerLastCheck?.targetId === player.id && (
           <div className="mb-3 p-2 bg-purple-600/30 rounded-lg border border-purple-400/50">
             <span className="text-purple-200 text-sm font-medium">
-              查验结果: {seerLastCheck.targetRole}
+              {t('playerCard.checkResult')}: {seerLastCheck.targetRole}
             </span>
           </div>
         )}
@@ -141,7 +143,7 @@ const PlayerCard = ({
         {gamePhase === GAME_PHASES.VOTING && player.isAlive && (
           <div className="mb-3">
             <span className={`text-sm ${textColor}`}>
-              被投票数: <span className="font-bold text-yellow-400">{voteCount}</span>
+              {t('playerCard.voteCount')}: <span className="font-bold text-yellow-400">{voteCount}</span>
             </span>
           </div>
         )}
@@ -155,7 +157,7 @@ const PlayerCard = ({
                 onClick={() => onPlayerAction('WEREWOLF_TARGET', player.id)} 
                 className="action-button w-full px-3 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 font-medium shadow-lg transform transition-all duration-200"
               >
-                🗡️ 攻击
+                🗡️ {t('playerCard.buttons.attack')}
               </button>
             )}
 
@@ -165,7 +167,7 @@ const PlayerCard = ({
                 onClick={() => onPlayerAction('GUARD_PROTECT', player.id)} 
                 className="action-button w-full px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium shadow-lg"
               >
-                🛡️ 守护
+                🛡️ {t('playerCard.buttons.guard')}
               </button>
             )}
 
@@ -175,7 +177,7 @@ const PlayerCard = ({
                 onClick={() => onPlayerAction('SEER_CHECK', player.id)} 
                 className="action-button w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 font-medium shadow-lg"
               >
-                🔮 查验
+                🔮 {t('playerCard.buttons.check')}
               </button>
             )}
 
@@ -185,7 +187,7 @@ const PlayerCard = ({
                 onClick={() => onPlayerAction('USE_POISON', player.id)} 
                 className="action-button w-full px-3 py-2 bg-gradient-to-r from-purple-800 to-purple-900 text-white rounded-lg hover:from-purple-900 hover:to-purple-800 font-medium shadow-lg"
               >
-                ☠️ 毒杀
+                ☠️ {t('playerCard.buttons.poison')}
               </button>
             )}
 
@@ -195,7 +197,7 @@ const PlayerCard = ({
                 onClick={() => onPlayerAction('VOTE_PLAYER', player.id)} 
                 className="action-button w-full px-3 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black rounded-lg hover:from-yellow-600 hover:to-yellow-700 font-medium shadow-lg"
               >
-                🗳️ 投票
+                🗳️ {t('playerCard.buttons.vote')}
               </button>
             )}
           </div>
@@ -208,7 +210,7 @@ const PlayerCard = ({
             onClick={() => onPlayerAction('HUNTER_SHOOT', player.id)} 
             className="action-button w-full px-3 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 font-medium shadow-lg"
           >
-            🏹 射杀
+            🏹 {t('playerCard.buttons.shoot')}
           </button>
         )}
       </div>

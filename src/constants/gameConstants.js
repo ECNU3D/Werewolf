@@ -1,10 +1,11 @@
+// Role keys for translation
 export const ROLES = {
-  WEREWOLF: '狼人',
-  SEER: '预言家',
-  WITCH: '女巫',
-  HUNTER: '猎人',
-  GUARD: '守卫',
-  VILLAGER: '平民',
+  WEREWOLF: 'WEREWOLF',
+  SEER: 'SEER',
+  WITCH: 'WITCH',
+  HUNTER: 'HUNTER',
+  GUARD: 'GUARD',
+  VILLAGER: 'VILLAGER',
 };
 
 export const PLAYER_COUNT = 8;
@@ -28,20 +29,21 @@ export const INITIAL_PLAYER_STATE = {
   aiSystemPrompt: '', 
 };
 
+// Game phase keys for translation
 export const GAME_PHASES = {
-  SETUP: '游戏设置',
-  SHOW_ROLE_MODAL: '显示角色卡',
-  NIGHT_START: '夜晚开始',
-  WEREWOLVES_ACT: '狼人行动',
-  GUARD_ACTS: '守卫行动',
-  SEER_ACTS: '预言家行动',
-  WITCH_ACTS_SAVE: '女巫行动 - 救人',
-  WITCH_ACTS_POISON: '女巫行动 - 毒人',
-  NIGHT_RESOLUTION: '夜晚结算',
-  DAY_START: '白天开始 - 公布死讯',
-  HUNTER_MAY_ACT: '猎人行动（如果死亡）',
-  DISCUSSION: '讨论阶段',
-  VOTING: '投票阶段',
-  VOTE_RESULTS: '投票结果',
-  GAME_OVER: '游戏结束',
+  SETUP: 'SETUP',
+  SHOW_ROLE_MODAL: 'SHOW_ROLE_MODAL',
+  NIGHT_START: 'NIGHT_START',
+  WEREWOLVES_ACT: 'WEREWOLVES_ACT',
+  GUARD_ACTS: 'GUARD_ACTS',
+  SEER_ACTS: 'SEER_ACTS',
+  WITCH_ACTS_SAVE: 'WITCH_ACTS_SAVE',
+  WITCH_ACTS_POISON: 'WITCH_ACTS_POISON',
+  NIGHT_RESOLUTION: 'NIGHT_RESOLUTION',
+  DAY_START: 'DAY_START',
+  HUNTER_MAY_ACT: 'HUNTER_MAY_ACT',
+  DISCUSSION: 'DISCUSSION',
+  VOTING: 'VOTING',
+  VOTE_RESULTS: 'VOTE_RESULTS',
+  GAME_OVER: 'GAME_OVER',
 }; 

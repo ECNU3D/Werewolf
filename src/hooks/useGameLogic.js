@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ROLES, GAME_PHASES } from '../constants/gameConstants';
 import { initializePlayers, checkWinCondition } from '../utils/gameUtils';
 import { getAIDecision } from '../utils/aiUtils';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export const useGameLogic = () => {
+  const { t, tr } = useLanguage();
+  
   // 1. useState hooks
   const [players, setPlayers] = useState([]);
   const [humanPlayerId, setHumanPlayerId] = useState(0);
@@ -49,18 +52,18 @@ export const useGameLogic = () => {
     const result = checkWinCondition(currentPlayersToCheck);
     if (result.gameOver && !winner) {
       if (result.winner === 'DRAW') {
-        addLog('所有玩家都已死亡！游戏平局或出现错误！', 'system', true);
+        addLog(t('gameResults.allDead'), 'system', true);
       } else if (result.winner === 'VILLAGERS') {
-        addLog('所有狼人已被消灭！平民阵营胜利！', 'system', true);
+        addLog(t('gameResults.villagersWin'), 'system', true);
       } else if (result.winner === 'WEREWOLVES') {
-        addLog('狼人数量达到或超过好人数量！狼人阵营胜利！', 'system', true);
+        addLog(t('gameResults.werewolvesWin'), 'system', true);
       }
       setWinner(result.winner);
       setGamePhase(GAME_PHASES.GAME_OVER);
       return false;
     }
     return true;
-  }, [addLog, winner]);
+  }, [addLog, winner, t]);
 
   const resolveNightActions = useCallback(() => {
     console.debug("[RESOLVE_NIGHT_ACTIONS] Starting night resolution.");
@@ -71,39 +74,39 @@ export const useGameLogic = () => {
 
     if (wolfTargetPlayer && wolfTargetPlayer.isAlive) {
       if (wolfTargetPlayer.isProtected) {
-        messagesForUILog.push(`玩家 ${wolfTargetPlayer.id} 被狼人攻击，但被守卫保护了！`);
+        messagesForUILog.push(t('nightActions.guardProtected', { playerId: wolfTargetPlayer.id }));
       } else if (wolfTargetPlayer.isHealedByWitch) {
-        messagesForUILog.push(`玩家 ${wolfTargetPlayer.id} 被狼人攻击，但被女巫用解药救活了！`);
+        messagesForUILog.push(t('nightActions.witchSaved', { playerId: wolfTargetPlayer.id }));
       } else {
-        messagesForUILog.push(`昨晚，玩家 ${wolfTargetPlayer.id} 被杀害了。`); 
-        deathsThisNightInfo.push({ id: wolfTargetPlayer.id, role: wolfTargetPlayer.role, reason: '狼人杀害' });
+        messagesForUILog.push(t('nightActions.werewolfKilled', { playerId: wolfTargetPlayer.id })); 
+        deathsThisNightInfo.push({ id: wolfTargetPlayer.id, role: wolfTargetPlayer.role, reason: t('nightActions.killedByWerewolf') });
       }
     } else if (werewolfTargetId !== null) {
-       messagesForUILog.push("昨晚狼人似乎没有得手，或者目标已经死亡。");
+       messagesForUILog.push(t('nightActions.werewolfMissed'));
     } else {
-       messagesForUILog.push("昨晚是个平安夜（狼人没有选择目标）。");
+       messagesForUILog.push(t('nightActions.peacefulNight'));
     }
 
     const poisonedPlayer = updatedPlayers.find(p => p.id === playerToPoisonId);
     if (poisonedPlayer && poisonedPlayer.isAlive) {
       const alreadyMarkedForDeathByWolf = deathsThisNightInfo.some(d => d.id === poisonedPlayer.id);
       if (!alreadyMarkedForDeathByWolf) {
-         messagesForUILog.push(`玩家 ${poisonedPlayer.id} 被女巫毒杀了。`); 
-         deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: '女巫毒杀' });
+         messagesForUILog.push(t('nightActions.witchPoisoned', { playerId: poisonedPlayer.id })); 
+         deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: t('nightActions.poisonedByWitch') });
       } else {
          deathsThisNightInfo = deathsThisNightInfo.filter(d => d.id !== poisonedPlayer.id); 
-         messagesForUILog.push(`玩家 ${poisonedPlayer.id} 被女巫毒杀了 (也可能曾是狼人目标)。`);
-         deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: '女巫毒杀' });
+         messagesForUILog.push(t('nightActions.witchPoisonedMultiple', { playerId: poisonedPlayer.id }));
+         deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: t('nightActions.poisonedByWitch') });
       }
     }
     
     let actualDeadIdsThisNight = [];
     if (deathsThisNightInfo.length === 0) {
       if (werewolfTargetId === null && playerToPoisonId === null && messagesForUILog.length === 0) { 
-        messagesForUILog.push("昨晚是平安夜，无人死亡。");
+        messagesForUILog.push(t('nightActions.noneDeadPeaceful'));
       } else if (messagesForUILog.length === 0 && (werewolfTargetId !== null || playerToPoisonId !== null)) {
         if (werewolfTargetId === null && playerToPoisonId === null) { 
-             messagesForUILog.push("昨晚行动过后，无人死亡。"); 
+             messagesForUILog.push(t('nightActions.noneDeadAfterActions')); 
         }
       }
     } else {
@@ -126,7 +129,7 @@ export const useGameLogic = () => {
       setGamePhase(GAME_PHASES.DAY_START);
     }
     console.debug("[RESOLVE_NIGHT_ACTIONS] Finished night resolution.");
-  }, [players, werewolfTargetId, playerToPoisonId, addLog, checkWinConditionWrapper]);
+  }, [players, werewolfTargetId, playerToPoisonId, addLog, checkWinConditionWrapper, t]);
 
   const resolveVoting = useCallback(() => {
     console.debug("[RESOLVE_VOTING] Starting vote resolution.");
@@ -163,12 +166,12 @@ export const useGameLogic = () => {
       if (eliminatedPlayerIndex !== -1) {
         updatedPlayers[eliminatedPlayerIndex].isAlive = false;
         updatedPlayers[eliminatedPlayerIndex].revealedRole = updatedPlayers[eliminatedPlayerIndex].role;
-        voteMessage = `玩家 ${eliminatedPlayerId} (${updatedPlayers[eliminatedPlayerIndex].role}) 被投票出局！`;
+        voteMessage = t('voting.playerEliminated', { playerId: eliminatedPlayerId, role: tr(updatedPlayers[eliminatedPlayerIndex].role) });
       }
     } else if (playersWithMaxVotesIds.length > 1) {
-      voteMessage = '投票出现平票，本轮无人出局。';
+      voteMessage = t('voting.tieVote');
     } else {
-      voteMessage = '无人获得足够票数，或无人投票，本轮无人出局。';
+      voteMessage = t('voting.noElimination');
     }
     addLog(voteMessage, 'system', true);
 
@@ -186,7 +189,7 @@ export const useGameLogic = () => {
     }
     setCurrentVotes({});
     console.debug("[RESOLVE_VOTING] Finished vote resolution.");
-  }, [players, currentVotes, addLog, checkWinConditionWrapper]);
+  }, [players, currentVotes, addLog, checkWinConditionWrapper, t, tr]);
   
   const handleNextSpeaker = useCallback(() => {
     if (winner) return;
@@ -216,7 +219,7 @@ export const useGameLogic = () => {
         console.debug(`[HANDLE_NEXT_SPEAKER] Moving to next alive player in list: Player ID ${nextSpeakerToSetId}`);
     } else { 
       console.debug("[HANDLE_NEXT_SPEAKER] All alive players have spoken, moving to VOTING phase.");
-      addLog('所有存活玩家发言完毕，进入投票阶段。', 'system', true); 
+      addLog(t('gamePhases.discussionDone'), 'system', true); 
       setGamePhase(GAME_PHASES.VOTING); 
       return;
     }
@@ -226,15 +229,15 @@ export const useGameLogic = () => {
 
     const nextSpeakerDetails = players.find(p => p.id === nextSpeakerToSetId);
     if (nextSpeakerDetails) {
-        addLog(`轮到玩家 ${nextSpeakerDetails.id} 发言。`, 'system', true);
+        addLog(t('speaking.nextSpeaker', { playerId: nextSpeakerDetails.id }), 'system', true);
     } else {
         console.error(`[HANDLE_NEXT_SPEAKER_ERROR] Could not find next speaker details for ID: ${nextSpeakerToSetId}`);
     }
-  }, [currentPlayerSpeakingId, players, winner, addLog]);
+  }, [currentPlayerSpeakingId, players, winner, addLog, t]);
 
   const initializeGameWrapper = useCallback((gameConfig = { isRandomRole: true, selectedRole: null }) => {
     console.log('[GAME_INIT] Received config:', gameConfig);
-    addLog('游戏初始化...', 'system', true);
+    addLog(t('gameInit.initializing'), 'system', true);
     const { newPlayers, humanId } = initializePlayers(gameConfig);
     setHumanPlayerId(humanId);
     setPlayers(newPlayers);
@@ -243,9 +246,9 @@ export const useGameLogic = () => {
     const humanPlayer = newPlayers.find(p => p.isHuman);
     console.log('[GAME_INIT] Human player assigned role:', humanPlayer.role);
     if (gameConfig.isRandomRole) {
-      addLog('游戏开始！身份已随机分配。', 'system', true);
+      addLog(t('gameInit.randomRoleAssigned'), 'system', true);
     } else {
-      addLog(`游戏开始！你选择扮演 ${humanPlayer.role}。`, 'system', true);
+      addLog(t('gameInit.selectedRoleAssigned', { role: tr(humanPlayer.role) }), 'system', true);
     }
     
     setShowRoleModalState(true); 
@@ -261,7 +264,7 @@ export const useGameLogic = () => {
     setCurrentVotes({});
     setWinner(null);
     setGamePhase(GAME_PHASES.SHOW_ROLE_MODAL); 
-  }, [addLog]);
+  }, [addLog, t, tr]);
 
   const handleAIVoting = async () => {
     console.debug("[HANDLE_AI_VOTING] Starting AI voting process.");
@@ -276,18 +279,18 @@ export const useGameLogic = () => {
             const aiVoteTargetId = parseInt(aiVoteTargetIdStr, 10);
             if (!isNaN(aiVoteTargetId) && players.find(p => p.id === aiVoteTargetId)?.isAlive && aiVoteTargetId !== aiPlayer.id) {
                 newVotesCollectedThisTurn[aiPlayer.id] = aiVoteTargetId;
-                addLog(`玩家 ${aiPlayer.id} 投票给玩家 ${aiVoteTargetId}。`, 'ai', true);
+                addLog(t('aiVoting.playerVoted', { aiPlayerId: aiPlayer.id, targetId: aiVoteTargetId }), 'ai', true);
                 anyNewVotes = true;
             } else {
                 const possibleTargets = players.filter(p => p.isAlive && p.id !== aiPlayer.id);
                 if (possibleTargets.length > 0) {
                     const randomTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)].id;
                     newVotesCollectedThisTurn[aiPlayer.id] = randomTarget;
-                    addLog(`玩家 ${aiPlayer.id} (随机) 投票给玩家 ${randomTarget}。`, 'ai', true);
+                    addLog(t('aiVoting.playerVotedRandom', { aiPlayerId: aiPlayer.id, targetId: randomTarget }), 'ai', true);
                     anyNewVotes = true;
                 } else {
                     newVotesCollectedThisTurn[aiPlayer.id] = null; // Explicitly mark as abstained if no valid target
-                    addLog(`玩家 ${aiPlayer.id} 弃票 (无有效目标)。`, 'ai', true);
+                    addLog(t('aiVoting.playerAbstained', { aiPlayerId: aiPlayer.id }), 'ai', true);
                     anyNewVotes = true;
                 }
             }

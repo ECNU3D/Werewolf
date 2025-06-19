@@ -1,74 +1,64 @@
 import { useState } from 'react';
 import { ROLES, PLAYER_COUNT } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const SetupScreen = ({ onStartGame }) => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isRandomMode, setIsRandomMode] = useState(true);
+  const { t, tr } = useLanguage();
 
   const roleOptions = [
     {
       role: ROLES.WEREWOLF,
       icon: '🐺',
-      name: '狼人',
-      description: '夜晚杀害好人，白天隐藏身份',
       color: 'from-red-900/80 to-red-800/80',
       border: 'border-red-400/50',
-      difficulty: '中等'
+      difficulty: 'medium'
     },
     {
       role: ROLES.SEER,
       icon: '🔮',
-      name: '预言家',
-      description: '每晚查验一人身份',
       color: 'from-blue-900/80 to-purple-800/80',
       border: 'border-blue-400/50',
-      difficulty: '困难'
+      difficulty: 'hard'
     },
     {
       role: ROLES.WITCH,
       icon: '🧙‍♀️',
-      name: '女巫',
-      description: '拥有解药和毒药各一瓶',
       color: 'from-purple-900/80 to-pink-800/80',
       border: 'border-purple-400/50',
-      difficulty: '困难'
+      difficulty: 'hard'
     },
     {
       role: ROLES.HUNTER,
       icon: '🏹',
-      name: '猎人',
-      description: '死亡时可以带走一名玩家',
       color: 'from-orange-900/80 to-red-800/80',
       border: 'border-orange-400/50',
-      difficulty: '简单'
+      difficulty: 'easy'
     },
     {
       role: ROLES.GUARD,
       icon: '🛡️',
-      name: '守卫',
-      description: '每晚守护一人免受狼杀',
       color: 'from-green-900/80 to-emerald-800/80',
       border: 'border-green-400/50',
-      difficulty: '中等'
+      difficulty: 'medium'
     },
     {
       role: ROLES.VILLAGER,
       icon: '👤',
-      name: '平民',
-      description: '依靠投票淘汰狼人',
       color: 'from-slate-900/80 to-gray-800/80',
       border: 'border-slate-400/50',
-      difficulty: '简单'
+      difficulty: 'easy'
     }
   ];
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
-      case '简单':
+      case 'easy':
         return 'text-green-400 bg-green-900/30';
-      case '中等':
+      case 'medium':
         return 'text-yellow-400 bg-yellow-900/30';
-      case '困难':
+      case 'hard':
         return 'text-red-400 bg-red-900/30';
       default:
         return 'text-gray-400 bg-gray-900/30';
@@ -84,7 +74,7 @@ const SetupScreen = ({ onStartGame }) => {
   };
 
   return (
-    <div className="min-h-screen text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-10 left-10 w-4 h-4 bg-purple-400/30 rounded-full animate-pulse"></div>
@@ -96,22 +86,22 @@ const SetupScreen = ({ onStartGame }) => {
       <div className="relative z-10 text-center max-w-6xl w-full">
         {/* Title */}
         <div className="mb-8">
-          <h1 className="game-title text-6xl md:text-7xl font-bold mb-4 tracking-wider">
-            狼 人 杀
+          <h1 className="game-title text-6xl md:text-7xl font-bold mb-4 tracking-wider bg-gradient-to-r from-purple-300 via-blue-300 to-purple-300 bg-clip-text text-transparent">
+            {t('gameTitle')}
           </h1>
           <div className="flex items-center justify-center text-xl text-gray-300 mb-2">
             <span className="mr-2">🌙</span>
-            <span>经典推理游戏</span>
+            <span>{t('classicGame')}</span>
             <span className="ml-2">🐺</span>
           </div>
           <p className="text-lg text-gray-400">
-            {PLAYER_COUNT}人局 | 2狼人 vs 6好人
+            {PLAYER_COUNT}{t('playerCount')} | {t('gameDescription')}
           </p>
         </div>
 
         {/* Role selection mode toggle */}
         <div className="mb-8 p-6 bg-gradient-to-r from-gray-900/80 to-purple-900/80 rounded-xl border border-purple-400/30 backdrop-filter backdrop-blur-sm">
-          <h2 className="text-2xl font-bold mb-4 text-purple-300">选择游戏模式</h2>
+          <h2 className="text-2xl font-bold mb-4 text-purple-300">{t('setup.chooseLanguage')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={() => setIsRandomMode(true)}
@@ -122,8 +112,8 @@ const SetupScreen = ({ onStartGame }) => {
               }`}
             >
               <div className="text-4xl mb-2">🎲</div>
-              <h3 className="text-xl font-semibold mb-2">随机分配</h3>
-              <p className="text-sm opacity-80">系统随机为你分配一个角色</p>
+              <h3 className="text-xl font-semibold mb-2">{t('setup.randomRole')}</h3>
+              <p className="text-sm opacity-80">{t('setup.randomModeDesc')}</p>
             </button>
             <button
               onClick={() => setIsRandomMode(false)}
@@ -134,8 +124,8 @@ const SetupScreen = ({ onStartGame }) => {
               }`}
             >
               <div className="text-4xl mb-2">🎯</div>
-              <h3 className="text-xl font-semibold mb-2">选择角色</h3>
-              <p className="text-sm opacity-80">自己选择想要扮演的角色</p>
+              <h3 className="text-xl font-semibold mb-2">{t('setup.selectRole')}</h3>
+              <p className="text-sm opacity-80">{t('setup.selectModeDesc')}</p>
             </button>
           </div>
         </div>
@@ -143,7 +133,7 @@ const SetupScreen = ({ onStartGame }) => {
         {/* Role selection grid (only shown when not in random mode) */}
         {!isRandomMode && (
           <div className="mb-8 p-6 bg-gradient-to-r from-gray-900/80 to-blue-900/80 rounded-xl border border-blue-400/30 backdrop-filter backdrop-blur-sm">
-            <h2 className="text-2xl font-bold mb-6 text-blue-300">选择你的角色</h2>
+            <h2 className="text-2xl font-bold mb-6 text-blue-300">{t('setup.selectRole')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roleOptions.map((roleOption) => (
                 <button
@@ -156,12 +146,12 @@ const SetupScreen = ({ onStartGame }) => {
                   }`}
                 >
                   <div className="text-5xl mb-3">{roleOption.icon}</div>
-                  <h3 className="text-xl font-bold mb-2">{roleOption.name}</h3>
+                  <h3 className="text-xl font-bold mb-2">{tr(roleOption.role)}</h3>
                   <p className="text-sm text-gray-300 mb-3 leading-relaxed">
-                    {roleOption.description}
+                    {t(`setup.roleDescriptions.${roleOption.role}`)}
                   </p>
                   <div className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(roleOption.difficulty)}`}>
-                    {roleOption.difficulty}
+                    {t(`setup.difficulty.${roleOption.difficulty}`)}
                   </div>
                 </button>
               ))}
@@ -169,7 +159,7 @@ const SetupScreen = ({ onStartGame }) => {
             {selectedRole && (
               <div className="mt-6 p-4 bg-green-900/30 rounded-lg border border-green-400/30">
                 <p className="text-green-300 font-medium">
-                  ✅ 已选择: {roleOptions.find(r => r.role === selectedRole)?.name}
+                  ✅ {t('setup.selected')}: {tr(selectedRole)}
                 </p>
               </div>
             )}
@@ -187,7 +177,7 @@ const SetupScreen = ({ onStartGame }) => {
                 : 'bg-gradient-to-r from-purple-600 via-purple-700 to-blue-600 text-white hover:from-purple-700 hover:via-purple-800 hover:to-blue-700 hover:scale-110'
             }`}
           >
-            🎮 开始游戏
+            🎮 {t('setup.startGame')}
           </button>
           
           {/* Glowing effect */}
@@ -199,10 +189,7 @@ const SetupScreen = ({ onStartGame }) => {
         {/* Instructions */}
         <div className="mt-8 p-4 bg-gray-900/50 rounded-xl border border-gray-700/50 max-w-2xl mx-auto">
           <p className="text-sm text-gray-400 leading-relaxed">
-            {isRandomMode 
-              ? '💡 系统将随机为你分配一个角色，增加游戏的不确定性和挑战性！'
-              : '💡 选择你想要扮演的角色，体验不同的游戏策略和玩法！'
-            }
+            💡 {isRandomMode ? t('setup.randomModeDesc') : t('setup.selectModeDesc')}
           </p>
         </div>
       </div>

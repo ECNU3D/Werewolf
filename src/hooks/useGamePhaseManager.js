@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { ROLES, GAME_PHASES } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export const useGamePhaseManager = (gameLogic) => {
+  const { t, tr } = useLanguage();
+  
   const {
     gamePhase,
     winner,
@@ -60,7 +63,7 @@ export const useGamePhaseManager = (gameLogic) => {
                     break;
                 case GAME_PHASES.NIGHT_START:
                     if (!showRoleModalState) { 
-                        addLog('夜幕降临，请闭眼。狼人请行动。', 'system', true);
+                        addLog(t('gamePhases.nightStart'), 'system', true);
                         setWerewolfTargetId(null); 
                         setPlayerToPoisonId(null); 
                         setPlayers(prev => prev.map(p => ({ ...p, isProtected: false, isTargetedByWolf: false, isHealedByWitch: false })));
@@ -70,7 +73,7 @@ export const useGamePhaseManager = (gameLogic) => {
                 
                 case GAME_PHASES.WEREWOLVES_ACT:
                     if (currentHumanPlayer_local?.role === ROLES.WEREWOLF && currentHumanPlayer_local.isAlive && werewolfTargetId === null) {
-                        addLog('等待你（狼人）选择攻击目标...', 'system', true);
+                        addLog(t('gamePhases.waitingWerewolf'), 'system', true);
                     } else {
                         const aiWolves = currentPlayers_local.filter(p => p.role === ROLES.WEREWOLF && p.isAlive && !p.isHuman);
                         if (aiWolves.length > 0 && werewolfTargetId === null) {
@@ -82,7 +85,7 @@ export const useGamePhaseManager = (gameLogic) => {
                             }
                         }
                         if (werewolfTargetId !== null || (aiWolves.length === 0 && !(currentHumanPlayer_local?.role === ROLES.WEREWOLF && currentHumanPlayer_local?.isAlive))) {
-                            addLog('狼人行动结束。守卫请行动。', 'system', true);
+                            addLog(t('gamePhases.werewolfDone'), 'system', true);
                             setGamePhase(GAME_PHASES.GUARD_ACTS);
                         }
                     }
@@ -100,7 +103,7 @@ export const useGamePhaseManager = (gameLogic) => {
                                 setGuardLastProtectedId(target);
                             }
                         }
-                        addLog('守卫行动结束。预言家请行动。', 'system', true);
+                        addLog(t('gamePhases.guardDone'), 'system', true);
                         setGamePhase(GAME_PHASES.SEER_ACTS);
                     }
                     break;
@@ -117,7 +120,7 @@ export const useGamePhaseManager = (gameLogic) => {
                                 setSeerLastCheck({ targetId: target, targetRole: targetPlayer.role });
                             }
                         }
-                        addLog('预言家行动结束。女巫请行动。', 'system', true);
+                        addLog(t('gamePhases.seerDone'), 'system', true);
                         setGamePhase(GAME_PHASES.WITCH_ACTS_SAVE);
                     }
                     break;
@@ -127,7 +130,7 @@ export const useGamePhaseManager = (gameLogic) => {
                         if (witchPotions.antidote && wolfVictimPlayer && wolfVictimPlayer.isAlive) {
                              // UI action will handle this
                         } else { 
-                            addLog('女巫请决定是否使用毒药（无解药目标或无解药）。', 'system', true);
+                            addLog(t('gamePhases.witchPoisonDecision'), 'system', true);
                             setGamePhase(GAME_PHASES.WITCH_ACTS_POISON);
                         }
                     } else { 
@@ -142,7 +145,7 @@ export const useGamePhaseManager = (gameLogic) => {
                                 }
                             }
                         }
-                        addLog('女巫请决定是否使用毒药。', 'system', true);
+                        addLog(t('gamePhases.witchPoisonDecision'), 'system', true);
                         setGamePhase(GAME_PHASES.WITCH_ACTS_POISON);
                     }
                     break;
@@ -163,7 +166,7 @@ export const useGamePhaseManager = (gameLogic) => {
                                 }
                             }
                         }
-                        addLog('女巫行动结束。夜晚结束，天亮了！', 'system', true);
+                        addLog(t('gamePhases.witchDone'), 'system', true);
                         setGamePhase(GAME_PHASES.NIGHT_RESOLUTION);
                     }
                     break;
@@ -171,24 +174,24 @@ export const useGamePhaseManager = (gameLogic) => {
                     resolveNightActions(); 
                     break;
                 case GAME_PHASES.DAY_START:
-                    let dayStartMessage = "天亮了。";
+                    let dayStartMessage = t('gamePhases.dayStart');
                     if (pendingDeathPlayerIds.length > 0) {
                         pendingDeathPlayerIds.forEach(deadId => {
                             const deadPlayer = currentPlayers_local.find(p => p.id === deadId);
-                            if (deadPlayer) dayStartMessage += ` 玩家 ${deadId} (${deadPlayer.role}) 在昨晚死亡。`;
+                            if (deadPlayer) dayStartMessage += ` ${t('gamePhases.playerDied', { playerId: deadId, role: tr(deadPlayer.role) })}`;
                         });
                     }
                     const hunterDied = currentPlayers_local.find(p => pendingDeathPlayerIds.includes(p.id) && !p.isAlive && p.role === ROLES.HUNTER);
                     if (hunterDied) {
-                        dayStartMessage += ` 猎人玩家 ${hunterDied.id} 已死亡，请选择是否开枪。`;
+                        dayStartMessage += ` ${t('gamePhases.hunterDied', { playerId: hunterDied.id })}`;
                         setHunterTargetId(null);
                         addLog(dayStartMessage, 'system', true);
                         setGamePhase(GAME_PHASES.HUNTER_MAY_ACT);
                     } else {
                         const firstAlive = currentPlayers_local.find(p => p.isAlive);
                         setCurrentPlayerSpeakingId(firstAlive ? firstAlive.id : 0);
-                        dayStartMessage += ' 进入讨论阶段。';
-                        if (firstAlive) dayStartMessage += ` 首先请玩家 ${firstAlive.id} 发言。`;
+                        dayStartMessage += ` ${t('gamePhases.discussionStart')}`;
+                        if (firstAlive) dayStartMessage += ` ${t('gamePhases.firstSpeaker', { playerId: firstAlive.id })}`;
                         addLog(dayStartMessage, 'system', true);
                         setGamePhase(GAME_PHASES.DISCUSSION);
                     }
@@ -196,7 +199,7 @@ export const useGamePhaseManager = (gameLogic) => {
                 case GAME_PHASES.HUNTER_MAY_ACT:
                     const humanHunterIsDead = currentHumanPlayer_local?.role === ROLES.HUNTER && !currentHumanPlayer_local.isAlive && (pendingDeathPlayerIds.includes(currentHumanPlayer_local.id) || hunterTargetId === currentHumanPlayer_local.id);
                     if (humanHunterIsDead) {
-                        addLog('等待你（猎人）决定是否开枪...', 'system', true);
+                        addLog(t('gamePhases.waitingHunter'), 'system', true);
                     } else { 
                         const deadAIHunter = currentPlayers_local.find(p => !p.isHuman && p.role === ROLES.HUNTER && !p.isAlive && (pendingDeathPlayerIds.includes(p.id) || hunterTargetId === p.id));
                         if (deadAIHunter) {
@@ -210,7 +213,7 @@ export const useGamePhaseManager = (gameLogic) => {
                                 if (!checkWinConditionWrapper(updatedHunterKillPlayers)) { isProcessingStepRef.current = false; return; }
                             }
                         }
-                        addLog('猎人行动结束。进入讨论阶段。', 'system', true);
+                        addLog(t('gamePhases.hunterDone'), 'system', true);
                         const firstAliveDisc = currentPlayers_local.find(p => p.isAlive);
                         setCurrentPlayerSpeakingId(firstAliveDisc ? firstAliveDisc.id : 0);
                         setGamePhase(GAME_PHASES.DISCUSSION);
@@ -220,12 +223,12 @@ export const useGamePhaseManager = (gameLogic) => {
                     const speaker = currentPlayers_local.find(p => p.id === currentPlayerSpeakingId);
                     if (speaker && speaker.isAlive) {
                         if (speaker.isHuman) {
-                            // addLog(`轮到你 (玩家 ${speaker.id}) 发言。`, 'system', true); // Logged by handleNextSpeaker or initial phase set
+                            // Logged by handleNextSpeaker or initial phase set
                         } else { 
                             console.debug(`[EXECUTE_CURRENT_STEP] AI Player ${speaker.id} turn to speak in DISCUSSION.`);
                             const statement = await getAIDecisionWrapper(speaker, 'DISCUSSION_STATEMENT', currentLog_local);
                             if (gamePhase === GAME_PHASES.DISCUSSION && currentPlayerSpeakingId === speaker.id && !winner) { 
-                                addLog(`玩家 ${speaker.id} 说: ${statement || "选择跳过发言。"}`, 'ai', true);
+                                addLog(t('gamePhases.playerSpeaks', { playerId: speaker.id, statement: statement || t('gamePhases.skipSpeech') }), 'ai', true);
                                 handleNextSpeaker(); 
                             } else {
                                  console.warn(`[AI_DISCUSSION_STALE_IN_EXECUTE] AI Player ID: ${speaker.id}. Phase/speaker changed.`);
@@ -236,7 +239,7 @@ export const useGamePhaseManager = (gameLogic) => {
                         handleNextSpeaker();
                     } else if (!winner) { 
                         console.debug("[EXECUTE_CURRENT_STEP] DISCUSSION: No one left to speak, moving to VOTING.");
-                        addLog('所有存活玩家发言完毕，进入投票阶段。', 'system', true);
+                        addLog(t('gamePhases.discussionDone'), 'system', true);
                         setGamePhase(GAME_PHASES.VOTING);
                     }
                     break;
@@ -246,13 +249,13 @@ export const useGamePhaseManager = (gameLogic) => {
                     const all_voted_voting = all_alive_voting.every(p => currentVotes.hasOwnProperty(p.id));
 
                     if (humanCanVote) {
-                        addLog("等待你投票...", "system", true);
+                        addLog(t('gamePhases.waitingVote'), "system", true);
                     } else if (!all_voted_voting) {
                         console.debug("[EXECUTE_CURRENT_STEP] VOTING: Human voted or not applicable, but not all votes in. Triggering AI voting.");
                         await handleAIVoting(); // Make sure this is awaited
                     } else if (all_voted_voting && gamePhase === GAME_PHASES.VOTING) { 
                         console.debug("[EXECUTE_CURRENT_STEP] VOTING: All votes are in. Setting phase to VOTE_RESULTS.");
-                        addLog('投票结束。正在统计结果。', 'system', true);
+                        addLog(t('gamePhases.votingDone'), 'system', true);
                         setGamePhase(GAME_PHASES.VOTE_RESULTS);
                     }
                     break;
@@ -267,7 +270,7 @@ export const useGamePhaseManager = (gameLogic) => {
             }
         } catch (error) {
             console.error("[EXECUTE_CURRENT_STEP] Error in step execution:", error);
-            addLog("游戏步骤执行出错，请检查控制台。", "error", true);
+            addLog(t('gamePhases.executionError'), "error", true);
         } finally {
             isProcessingStepRef.current = false;
         }
@@ -291,6 +294,7 @@ export const useGamePhaseManager = (gameLogic) => {
     humanPlayerId, 
     seerLastCheck, 
     playerToPoisonId, 
-    hunterTargetId
+    hunterTargetId,
+    t, tr
   ]);
 }; 

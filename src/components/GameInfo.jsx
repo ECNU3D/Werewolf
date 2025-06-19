@@ -1,13 +1,17 @@
 import { ROLES, PLAYER_COUNT } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
+  const { t, tr, tp } = useLanguage();
+  
   // Get phase-specific styling
   const getPhaseColor = (phase) => {
-    if (phase.includes('夜晚') || phase.includes('狼人') || phase.includes('守卫') || phase.includes('预言家') || phase.includes('女巫')) {
+    const phaseKey = phase.toUpperCase();
+    if (phaseKey.includes('NIGHT') || phaseKey.includes('WEREWOLF') || phaseKey.includes('GUARD') || phaseKey.includes('SEER') || phaseKey.includes('WITCH')) {
       return 'text-purple-300';
-    } else if (phase.includes('讨论') || phase.includes('投票')) {
+    } else if (phaseKey.includes('DISCUSSION') || phaseKey.includes('VOTING')) {
       return 'text-yellow-300';
-    } else if (phase.includes('结算') || phase.includes('结果')) {
+    } else if (phaseKey.includes('RESOLUTION') || phaseKey.includes('RESULTS')) {
       return 'text-red-300';
     }
     return 'text-blue-300';
@@ -32,20 +36,20 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
       
       <div className="relative z-10">
         <h2 className="game-title text-4xl font-bold mb-4 text-center">
-          狼人杀
+          {t('gameTitle')}
         </h2>
         <div className="text-center mb-4">
-          <span className="text-lg text-gray-300">({PLAYER_COUNT}人局)</span>
+          <span className="text-lg text-gray-300">({PLAYER_COUNT}{t('playerCount')})</span>
         </div>
         
         {/* Current phase */}
         <div className="mb-4 p-3 bg-black/20 rounded-lg border border-white/10">
           <div className="flex items-center justify-center">
             <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full mr-3 animate-pulse"></div>
-            <span className="text-lg font-medium text-gray-200">当前阶段:</span>
+            <span className="text-lg font-medium text-gray-200">{t('gameInfo.currentPhase')}:</span>
           </div>
           <p className={`text-2xl font-bold text-center mt-2 ${getPhaseColor(gamePhase)}`}>
-            {gamePhase}
+            {tp(gamePhase)}
           </p>
         </div>
 
@@ -55,8 +59,8 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
             <div className="flex items-center justify-center mb-2">
               <span className="text-3xl mr-3">{getRoleIcon(humanPlayer.role)}</span>
               <div className="text-center">
-                <p className="text-lg text-gray-300">你的身份</p>
-                <p className="text-2xl font-bold text-blue-200">{humanPlayer.role}</p>
+                <p className="text-lg text-gray-300">{t('gameInfo.yourRole')}</p>
+                <p className="text-2xl font-bold text-blue-200">{tr(humanPlayer.role)}</p>
               </div>
             </div>
             
@@ -64,12 +68,12 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
               {humanPlayer.isAlive ? (
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                  <span className="text-green-300 font-semibold text-lg">存活</span>
+                  <span className="text-green-300 font-semibold text-lg">{t('playerCard.alive')}</span>
                 </div>
               ) : (
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-red-400 rounded-full mr-2"></div>
-                  <span className="text-red-400 font-semibold text-lg">已淘汰</span>
+                  <span className="text-red-400 font-semibold text-lg">{t('playerCard.eliminated')}</span>
                 </div>
               )}
             </div>
@@ -81,7 +85,7 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
           <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/40 to-pink-900/40 rounded-xl border border-purple-400/30">
             <h3 className="text-lg font-semibold text-purple-200 mb-3 text-center flex items-center justify-center">
               <span className="mr-2">🧪</span>
-              药剂状态
+              {t('gameInfo.potionsStatus')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className={`p-3 rounded-lg border text-center transition-all duration-300 ${
@@ -91,7 +95,7 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
               }`}>
                 <div className="text-2xl mb-1">💚</div>
                 <div className="text-sm font-medium">
-                  {witchPotions.antidote ? '解药可用' : '解药已用'}
+                  {witchPotions.antidote ? t('gameInfo.antidoteAvailable') : t('gameInfo.antidoteUsed')}
                 </div>
               </div>
               <div className={`p-3 rounded-lg border text-center transition-all duration-300 ${
@@ -101,7 +105,7 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
               }`}>
                 <div className="text-2xl mb-1">☠️</div>
                 <div className="text-sm font-medium">
-                  {witchPotions.poison ? '毒药可用' : '毒药已用'}
+                  {witchPotions.poison ? t('gameInfo.poisonAvailable') : t('gameInfo.poisonUsed')}
                 </div>
               </div>
             </div>
@@ -113,14 +117,14 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
           <div className="p-4 bg-gradient-to-r from-blue-900/40 to-indigo-900/40 rounded-xl border border-blue-400/30">
             <h3 className="text-lg font-semibold text-blue-200 mb-2 text-center flex items-center justify-center">
               <span className="mr-2">🔮</span>
-              查验记录
+              {t('gameInfo.seerResult')}
             </h3>
             <div className="text-center p-3 bg-blue-900/30 rounded-lg">
               <p className="text-blue-300">
-                玩家 <span className="font-bold text-white">{seerLastCheck.targetId}</span> 的身份是
+                {t('common.player')} <span className="font-bold text-white">{seerLastCheck.targetId}</span> {t('gameInfo.checkResult')}
               </p>
               <p className="text-xl font-bold text-blue-100 mt-1">
-                {seerLastCheck.targetRole}
+                {tr(seerLastCheck.targetRole)}
               </p>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { ROLES, GAME_PHASES } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const ActionPanel = ({ 
   gamePhase,
@@ -19,6 +20,8 @@ const ActionPanel = ({
   onNextSpeaker,
   onShowVoteResults
 }) => {
+  const { t } = useLanguage();
+  
   return (
     <div className="bg-gradient-to-br from-gray-800/90 via-gray-900/90 to-purple-900/90 p-6 rounded-xl shadow-2xl border border-purple-400/30 backdrop-filter backdrop-blur-sm relative overflow-hidden">
       {/* Atmospheric background */}
@@ -30,7 +33,7 @@ const ActionPanel = ({
             <span className="text-white font-bold">⚡</span>
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            你的行动
+            {t('actionPanel.yourAction')}
           </h3>
         </div>
         
@@ -39,10 +42,10 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl border border-green-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🧙‍♀️</span>
-              <span className="text-green-300 font-semibold">女巫行动 - 救人</span>
+              <span className="text-green-300 font-semibold">{t('actionPanel.witchSave')}</span>
             </div>
             <p className="text-center mb-4 text-green-200">
-              狼人攻击了玩家 <span className="font-bold text-white">{werewolfTargetId}</span>。是否使用解药?
+              {t('actionPanel.werewolfAttacked')} <span className="font-bold text-white">{werewolfTargetId}</span>。{t('actionPanel.useAntidoteQuestion')}
             </p>
             <div className="space-y-3">
               <button 
@@ -54,13 +57,13 @@ const ActionPanel = ({
                     : 'bg-gray-600 opacity-50 cursor-not-allowed text-gray-300'
                 }`}
               >
-                💚 {witchPotions.antidote ? '使用解药' : '解药已用'}
+                💚 {witchPotions.antidote ? t('actionPanel.useAntidote') : t('gameInfo.antidoteUsed')}
               </button>
               <button 
                 onClick={() => onPlayerAction('SKIP_ANTIDOTE')} 
                 className="action-button w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 font-semibold shadow-lg"
               >
-                ❌ 不使用
+                ❌ {t('actionPanel.skipAntidote')}
               </button>
             </div>
           </div>
@@ -71,7 +74,7 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🧙‍♀️</span>
-              <span className="text-purple-300 font-semibold">女巫行动 - 毒人</span>
+              <span className="text-purple-300 font-semibold">{t('actionPanel.witchPoison')}</span>
             </div>
             <button 
               onClick={() => onPlayerAction('SKIP_POISON')} 
@@ -82,7 +85,7 @@ const ActionPanel = ({
                   : 'bg-gray-600 opacity-50 cursor-not-allowed text-gray-300'
               }`}
             >
-              {witchPotions.poison ? '☠️ 不使用毒药并结束回合' : '🚫 已无毒药'}
+              {witchPotions.poison ? `☠️ ${t('actionPanel.skipPoison')}` : `🚫 ${t('gameInfo.poisonUsed')}`}
             </button>
           </div>
         )}
@@ -93,13 +96,13 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-xl border border-orange-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🏹</span>
-              <span className="text-orange-300 font-semibold">猎人临终一枪</span>
+              <span className="text-orange-300 font-semibold">{t('actionPanel.shootTarget')}</span>
             </div>
             <button 
               onClick={() => onPlayerAction('HUNTER_SKIP_SHOOT')} 
               className="action-button w-full px-4 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-lg hover:from-orange-700 hover:to-red-800 font-semibold shadow-lg"
             >
-              🙅‍♂️ 选择不开枪
+              🙅‍♂️ {t('actionPanel.noShoot')}
             </button>
           </div>
         )}
@@ -109,7 +112,7 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-yellow-900/30 to-amber-900/30 rounded-xl border border-yellow-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🎤</span>
-              <span className="text-yellow-300 font-semibold">轮到你发言了</span>
+              <span className="text-yellow-300 font-semibold">{t('actionPanel.yourTurn')}</span>
             </div>
             <div className="space-y-4">
               <div className="relative">
@@ -118,7 +121,7 @@ const ActionPanel = ({
                   onChange={(e) => setHumanPlayerSpeech(e.target.value)} 
                   rows="4" 
                   className="w-full p-4 bg-gray-800/80 border-2 border-yellow-400/30 rounded-lg focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-400 text-gray-100 placeholder-gray-400 backdrop-filter backdrop-blur-sm transition-all duration-300" 
-                  placeholder="输入你的发言..."
+                  placeholder={t('actionPanel.enterSpeech')}
                 />
                 <div className="absolute top-2 right-2 text-xs text-gray-400">
                   {humanPlayerSpeech.length}/500
@@ -133,13 +136,13 @@ const ActionPanel = ({
                       : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white'
                   }`}
                 >
-                  {isListening ? '🔴 停止录音' : '🎤 开始录音'}
+                  {isListening ? `🔴 ${t('actionPanel.stopRecording')}` : `🎤 ${t('actionPanel.startRecording')}`}
                 </button>
                 <button 
                   onClick={onSpeechSubmission} 
                   className="action-button px-4 py-3 bg-gradient-to-r from-yellow-600 to-amber-600 text-white rounded-lg hover:from-yellow-700 hover:to-amber-700 font-semibold shadow-lg"
                 >
-                  ✅ 确认发言
+                  ✅ {t('actionPanel.confirmSpeech')}
                 </button>
               </div>
             </div>
@@ -151,13 +154,13 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-gray-800/30 to-slate-800/30 rounded-xl border border-gray-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🤖</span>
-              <span className="text-gray-300 font-semibold">AI 发言中...</span>
+              <span className="text-gray-300 font-semibold">{t('actionPanel.aiSpeaking')}</span>
             </div>
             <button 
               onClick={onNextSpeaker} 
               className="action-button w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 font-semibold shadow-lg"
             >
-              ⏭️ 跳过 AI 发言 (调试)
+              ⏭️ {t('actionPanel.skipAISpeech')}
             </button>
           </div>
         )}
@@ -167,10 +170,10 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-xl border border-yellow-400/40">
             <div className="flex items-center mb-3">
               <span className="text-2xl mr-2">🗳️</span>
-              <span className="text-yellow-300 font-semibold">投票阶段</span>
+              <span className="text-yellow-300 font-semibold">{t('actionPanel.votingPhase')}</span>
             </div>
             <p className="text-center text-yellow-200 bg-yellow-900/20 p-3 rounded-lg border border-yellow-400/30">
-              请在右侧玩家列表中选择投票目标
+              {t('actionPanel.selectTarget')}
             </p>
           </div>
         )}
@@ -180,7 +183,7 @@ const ActionPanel = ({
           <div className="p-4 bg-gradient-to-r from-blue-900/30 to-indigo-900/30 rounded-xl border border-blue-400/40">
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mr-3"></div>
-              <span className="text-blue-300 font-medium">等待其他玩家投票...</span>
+              <span className="text-blue-300 font-medium">{t('actionPanel.waitingVotes')}</span>
             </div>
           </div>
         )}
@@ -192,7 +195,7 @@ const ActionPanel = ({
               onClick={onShowVoteResults} 
               className="action-button w-full px-4 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-bold text-lg shadow-lg"
             >
-              📊 查看投票结果
+              📊 {t('common.confirm')}
             </button>
           </div>
         )}

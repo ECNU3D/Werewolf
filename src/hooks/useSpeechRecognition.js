@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
+import { LANGUAGES } from '../constants/languages';
 
 export const useSpeechRecognition = (humanPlayerId, addLog) => {
   const [isListening, setIsListening] = useState(false);
   const [humanPlayerSpeech, setHumanPlayerSpeech] = useState('');
   const recognitionRef = useRef(null);
+  const { currentLanguage, t } = useLanguage();
 
   useEffect(() => { 
     let recognitionInstance;
@@ -12,24 +15,21 @@ export const useSpeechRecognition = (humanPlayerId, addLog) => {
       recognitionInstance = new SpeechRecognition();
       recognitionInstance.continuous = false;
       recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'zh-CN';
+      
+      // Set language based on current language
+      recognitionInstance.lang = currentLanguage === LANGUAGES.CHINESE ? 'zh-CN' : 'en-US';
       
       recognitionInstance.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         setHumanPlayerSpeech(transcript);
-        addLog(`你 (玩家 ${humanPlayerId}) 说: ${transcript}`, 'human', true);
+        addLog(t('speech.yourSpeech', { id: humanPlayerId, text: transcript }), 'human', true);
         setIsListening(false);
       };
       
       recognitionInstance.onerror = (event) => {
-        let errorMessage = '未知语音识别错误';
-        if (event.error) {
-          errorMessage = `语音识别错误: ${event.error}`;
-          console.error('Detailed speech recognition error:', event.error); 
-        } else {
-          console.error('Generic speech recognition error object:', event); 
-        }
-        addLog(`${errorMessage}. 请尝试手动输入或检查麦克风权限。`, 'error', true);
+        let errorMessage = t('speech.speechError', { error: event.error || 'Unknown error' });
+        console.error('Speech recognition error:', event.error || event); 
+        addLog(`${errorMessage}. ${t('speech.checkMicrophone')}`, 'error', true);
         setIsListening(false);
       };
       
@@ -39,7 +39,7 @@ export const useSpeechRecognition = (humanPlayerId, addLog) => {
       
       recognitionRef.current = recognitionInstance;
     } else {
-      addLog('您的浏览器不支持语音识别。请手动输入发言。', 'system', true);
+      addLog(t('speech.noSpeechSupport'), 'system', true);
     }
     
     return () => {
@@ -51,11 +51,11 @@ export const useSpeechRecognition = (humanPlayerId, addLog) => {
         recognitionInstance = null;
       }
     };
-  }, [humanPlayerId, addLog]); 
+  }, [humanPlayerId, addLog, currentLanguage, t]); 
 
   const toggleListen = () => {
     if (!recognitionRef.current) {
-        addLog('语音识别功能尚未准备好。', 'error', true);
+        addLog(t('speech.speechError', { error: 'Not ready' }), 'error', true);
         return;
     }
     if (isListening) {
@@ -65,10 +65,10 @@ export const useSpeechRecognition = (humanPlayerId, addLog) => {
       try {
         recognitionRef.current.start();
         setIsListening(true);
-        addLog('请开始发言...', 'system', true);
+        addLog(t('speech.startSpeaking'), 'system', true);
       } catch (e) {
         console.error("Error starting speech recognition: ", e);
-        addLog(`启动语音识别失败: ${e.message}. 请检查麦克风设置。`, 'error', true);
+        addLog(t('speech.speechError', { error: e.message || 'Failed to start' }) + '. ' + t('speech.checkMicrophone'), 'error', true);
         setIsListening(false);
       }
     }

@@ -1,6 +1,9 @@
 import { ROLES } from '../constants/gameConstants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const RoleModal = ({ humanPlayer, onContinue }) => {
+  const { t, tr } = useLanguage();
+  
   if (!humanPlayer) return null;
 
   const getRoleIcon = (role) => {
@@ -122,10 +125,10 @@ const RoleModal = ({ humanPlayer, onContinue }) => {
               {roleIcon}
             </div>
             <h2 className={`text-2xl font-semibold mb-2 ${theme.title}`}>
-              你的身份是
+              {t('roleModal.yourRole')}
             </h2>
             <div className={`text-5xl font-bold ${theme.accent} tracking-wider mb-2 animate-pulse`}>
-              {humanPlayer.role}
+              {tr(humanPlayer.role)}
             </div>
           </div>
 
@@ -134,30 +137,30 @@ const RoleModal = ({ humanPlayer, onContinue }) => {
             <div className="p-4 bg-black/20 rounded-xl border border-white/10">
               <h3 className={`text-lg font-semibold ${theme.title} mb-2 flex items-center`}>
                 <span className="mr-2">🎯</span>
-                获胜目标
+                {t('roleModal.victoryGoal')}
               </h3>
               <p className={`${theme.accent} leading-relaxed`}>
-                {description.goal}
+                {t(`roleModal.goals.${humanPlayer.role}`)}
               </p>
             </div>
 
             <div className="p-4 bg-black/20 rounded-xl border border-white/10">
               <h3 className={`text-lg font-semibold ${theme.title} mb-2 flex items-center`}>
                 <span className="mr-2">⚡</span>
-                特殊能力
+                {t('roleModal.specialAbility')}
               </h3>
               <p className={`${theme.accent} leading-relaxed`}>
-                {description.ability}
+                {t(`roleModal.abilities.${humanPlayer.role}`)}
               </p>
             </div>
 
             <div className="p-4 bg-black/20 rounded-xl border border-white/10">
               <h3 className={`text-lg font-semibold ${theme.title} mb-2 flex items-center`}>
                 <span className="mr-2">💡</span>
-                游戏提示
+                {t('roleModal.gameTips')}
               </h3>
               <p className={`${theme.accent} leading-relaxed`}>
-                {description.tips}
+                {t(`roleModal.tips.${humanPlayer.role}`)}
               </p>
             </div>
           </div>
@@ -167,7 +170,7 @@ const RoleModal = ({ humanPlayer, onContinue }) => {
             onClick={onContinue} 
             className={`action-button px-8 py-4 bg-gradient-to-r ${theme.button} text-white text-xl font-semibold rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-white/20`}
           >
-            🎮 知道了，进入游戏
+            🎮 {t('roleModal.continueGame')}
           </button>
         </div>
 

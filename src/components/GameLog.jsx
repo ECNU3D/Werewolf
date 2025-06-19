@@ -1,16 +1,20 @@
+import { useLanguage } from '../contexts/LanguageContext';
+
 const GameLog = ({ gameLog }) => {
+  const { t } = useLanguage();
+
   return (
-    <div className="game-log relative overflow-hidden rounded-xl shadow-2xl border border-purple-400/30">
+    <div className="bg-gradient-to-br from-gray-800/90 via-gray-900/90 to-purple-900/90 p-6 rounded-xl shadow-2xl border border-purple-400/30 backdrop-filter backdrop-blur-sm relative overflow-hidden">
       {/* Atmospheric background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/95 via-purple-900/95 to-gray-900/95 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-blue-900/10 pointer-events-none"></div>
       
-      <div className="relative z-10 p-6">
+      <div className="relative z-10">
         <div className="flex items-center justify-center mb-4">
           <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mr-3">
-            <span className="text-white font-bold">📜</span>
+            <span className="text-white font-bold">📋</span>
           </div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            游戏记录
+            {t('gameLog.title') || 'Game Log'}
           </h3>
         </div>
         
@@ -27,7 +31,7 @@ const GameLog = ({ gameLog }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-xs font-medium ${getLogTagColor(log.type)}`}>
-                      {getLogTypeLabel(log.type)}
+                      {getLogTypeLabel(log.type, t)}
                     </span>
                     <span className="text-xs text-gray-500">
                       {log.timestamp}
@@ -44,7 +48,7 @@ const GameLog = ({ gameLog }) => {
           {gameLog.length === 0 && (
             <div className="text-center py-8">
               <div className="text-4xl mb-2 opacity-50">🌙</div>
-              <p className="text-gray-400">游戏尚未开始...</p>
+              <p className="text-gray-400">{t('gameLog.notStarted')}</p>
             </div>
           )}
         </div>
@@ -110,16 +114,16 @@ const getLogTextColor = (type) => {
   }
 };
 
-const getLogTypeLabel = (type) => {
+const getLogTypeLabel = (type, t) => {
   switch (type) {
     case 'human':
-      return '玩家';
+      return t('gameLog.logTypes.human');
     case 'ai':
-      return 'AI';
+      return t('gameLog.logTypes.ai');
     case 'error':
-      return '错误';
+      return t('gameLog.logTypes.error');
     default:
-      return '系统';
+      return t('gameLog.logTypes.system');
   }
 };
 
