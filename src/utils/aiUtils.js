@@ -13,6 +13,10 @@ const getAIConfig = () => {
   } else if (config.provider === 'gemini') {
     config.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
     config.model = process.env.REACT_APP_GEMINI_MODEL || 'gemini-2.5-flash'; // Default model
+  } else if (config.provider === 'openai') {
+    config.baseUrl = process.env.REACT_APP_OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    config.apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+    config.model = process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-mini'; // Default model
   }
 
   return config;
@@ -161,6 +165,90 @@ const callGeminiAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
   }
 };
 
+// OpenAI compatible API call function
+const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
+  if (!config.apiKey || config.apiKey.trim() === '') {
+    console.error("[OPENAI_ERROR] OpenAI API key is not configured. Please set REACT_APP_OPENAI_API_KEY in your .env file.");
+    addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI API key not configured. Please check environment variables.`, 'error', true);
+    return null;
+  }
+
+  const apiUrl = `${config.baseUrl}/chat/completions`;
+  
+  const payload = {
+    model: config.model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+    max_tokens: 150,
+    stop: ["\n", "Player", "---"]
+  };
+
+  console.debug(`[OPENAI_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model} | URL: ${apiUrl}`);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorBody);
+      } catch (e) {
+        errorData = { error: { message: errorBody } };
+      }
+      
+      console.error(`[OPENAI_ERROR] AI ${aiPlayer.id} (${promptPurpose}) | Status: ${response.status} | Error: ${errorBody}`);
+      
+      // Handle specific error types
+      if (errorData.error && errorData.error.message) {
+        const errorMessage = errorData.error.message;
+        if (errorMessage.includes("Incorrect API key")) {
+          addLog(`🔑 AI ${aiPlayer.id} - Invalid API key. Please check your OpenAI API key.`, 'error', true);
+        } else if (errorMessage.includes("quota") || errorMessage.includes("billing")) {
+          addLog(`💳 AI ${aiPlayer.id} - Quota exceeded. Please check your OpenAI billing and usage.`, 'error', true);
+        } else if (errorMessage.includes("rate limit")) {
+          addLog(`⏱️ AI ${aiPlayer.id} - Rate limit reached. Please wait and try again.`, 'error', true);
+        } else if (errorMessage.includes("model")) {
+          addLog(`🤖 AI ${aiPlayer.id} - Model '${config.model}' not available. Please check available models.`, 'error', true);
+        } else {
+          addLog(`🚫 AI ${aiPlayer.id} - OpenAI API Error: ${errorMessage}`, 'error', true);
+        }
+      } else {
+        addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI API request failed: ${response.status}. Check console for details.`, 'error', true);
+      }
+      return null;
+    }
+
+    const result = await response.json();
+    console.debug(`[OPENAI_RAW_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}):\n${JSON.stringify(result, null, 2)}`);
+
+    if (result.choices && result.choices.length > 0 && result.choices[0].message && result.choices[0].message.content) {
+      let text = result.choices[0].message.content.trim();
+      console.debug(`[OPENAI_EXTRACTED_TEXT] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
+      return text;
+    } else {
+      console.error(`[OPENAI_ERROR] AI ${aiPlayer.id} (${promptPurpose}) Unexpected API response structure:`, result);
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Unexpected OpenAI response structure. Check console for details.`, 'error', true);
+      return null;
+    }
+  } catch (error) {
+    console.error(`[OPENAI_CATCH_ERROR] Error calling OpenAI API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to OpenAI API at ${config.baseUrl}. Check your internet connection.`, 'error', true);
+    } else {
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI thinking error: ${error.message}`, 'error', true);
+    }
+    return null;
+  }
+};
+
 export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_param, gameState) => {
   const { 
     players, 
@@ -259,9 +347,11 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
     rawResponse = await callOllamaAPI(fullPrompt, config, aiPlayer, promptPurpose, addLog);
   } else if (config.provider === 'gemini') {
     rawResponse = await callGeminiAPI(fullPrompt, config, aiPlayer, promptPurpose, addLog);
+  } else if (config.provider === 'openai') {
+    rawResponse = await callOpenAIAPI(fullPrompt, config, aiPlayer, promptPurpose, addLog);
   } else {
     console.error(`[AI_ERROR] Unknown AI provider: ${config.provider}`);
-    addLog(`AI ${aiPlayer.id} - Unknown AI provider: ${config.provider}. Please set REACT_APP_AI_PROVIDER to 'gemini' or 'ollama'.`, 'error', true);
+    addLog(`AI ${aiPlayer.id} - Unknown AI provider: ${config.provider}. Please set REACT_APP_AI_PROVIDER to 'gemini', 'ollama', or 'openai'.`, 'error', true);
     return null;
   }
 
