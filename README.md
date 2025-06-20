@@ -42,29 +42,108 @@ The game follows a structured sequence of phases:
 
 - Node.js (v14 or higher)
 - npm or yarn
-- A Google Gemini API key (for AI players functionality)
+- **Choose one AI provider:**
+  - Google Gemini API key (for cloud-based AI) OR
+  - Ollama installation (for local AI)
 
-### API Configuration
+### AI Configuration
 
-To enable AI players, you need to configure the Google Gemini API:
+This game supports two AI providers: **Gemini** (Google AI) and **Ollama** (Local AI). Choose the one that best fits your needs.
+
+#### Environment Variables Setup
+
+Create a `.env` file in the root directory with the following configuration:
+
+```env
+# AI Provider Configuration
+# Choose your AI provider: 'gemini' or 'ollama'
+REACT_APP_AI_PROVIDER=gemini
+
+# Gemini Configuration (Google AI)
+# Get your API key from: https://makersuite.google.com/app/apikey
+REACT_APP_GEMINI_API_KEY=your_gemini_api_key_here
+REACT_APP_GEMINI_MODEL=gemini-2.5-flash
+
+# Ollama Configuration (Local AI)
+# Make sure Ollama is running locally or on your server
+REACT_APP_OLLAMA_BASE_URL=http://localhost:11434
+REACT_APP_OLLAMA_MODEL=gemma3:4b
+```
+
+#### Option 1: Using Gemini (Google AI)
 
 1. **Get a Gemini API Key:**
-   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
    - Sign in with your Google account
    - Create a new API key
    - Copy the generated API key
 
 2. **Configure Environment Variables:**
-   - Copy `.env.example` to `.env` in the root directory
-   - Add your Gemini API key to the `.env` file:
-   ```
-   REACT_APP_GEMINI_API_KEY=your_api_key_here
+   - Set `REACT_APP_AI_PROVIDER=gemini`
+   - Add your API key to `REACT_APP_GEMINI_API_KEY`
+   - Choose your model (optional, defaults to gemini-2.5-flash)
+
+**Recommended Gemini Models:**
+- `gemini-2.5-flash` - Latest stable model (default)
+- `gemini-1.5-flash` - Fast and reliable
+- `gemini-1.5-pro` - More capable but slower
+
+#### Option 2: Using Ollama (Local AI)
+
+1. **Install Ollama:**
+   - Download from [ollama.ai](https://ollama.ai/)
+   - Install and start the service
+
+2. **Pull AI Model:**
+   ```bash
+   # Install the default model
+   ollama pull gemma3:4b
+   
+   # Or try other models
+   ollama pull gemma2:9b
+   ollama pull llama3.2:3b
+   ollama pull qwen2.5:7b
    ```
 
-**Important Notes:**
-- The Gemini API may not be available in all regions. If you encounter geographic restrictions, consider using a VPN or alternative AI service.
-- Keep your API key secure and never commit it to version control.
-- The API key is required for AI players to function. Without it, only human players will be available.
+3. **Configure Environment Variables:**
+   - Set `REACT_APP_AI_PROVIDER=ollama`
+   - Set the base URL (defaults to http://localhost:11434)
+   - Choose your model (defaults to gemma3:4b)
+
+**Recommended Ollama Models:**
+- `gemma3:4b` - Good balance of speed and quality (default)
+- `gemma2:9b` - Better quality, requires more memory
+- `llama3.2:3b` - Meta's Llama model
+- `qwen2.5:7b` - Alibaba's Qwen model
+
+#### Switching Between Providers
+
+Simply change the `REACT_APP_AI_PROVIDER` value:
+- `gemini` - Use Google's Gemini API (requires API key)
+- `ollama` - Use local Ollama installation (requires local setup)
+
+#### Troubleshooting
+
+**Gemini Issues:**
+- **Geographic restrictions**: Some regions don't support Gemini. Consider using Ollama instead.
+- **API key errors**: Double-check your API key is correct
+- **Rate limits**: Wait a moment before trying again
+
+**Ollama Issues:**
+- **Connection errors**: Make sure Ollama is running (`ollama serve`)
+- **Model not found**: Pull the model first (`ollama pull model-name`)
+- **Server errors**: Check Ollama logs for issues
+
+#### Performance Comparison
+
+| Provider | Speed | Quality | Privacy | Cost |
+|----------|-------|---------|---------|------|
+| Gemini   | Fast  | High    | Cloud   | Pay per use |
+| Ollama   | Variable | Variable | Local | Free |
+
+**Choose based on your needs:**
+- **Gemini**: Better for consistent high-quality responses, requires internet and API key
+- **Ollama**: Better for privacy and offline use, performance depends on your hardware
 
 ### Installation
 
@@ -169,29 +248,108 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Node.js (v14或更高版本)
 - npm 或 yarn
-- Google Gemini API密钥（用于AI玩家功能）
+- **选择一种AI提供商：**
+  - Google Gemini API密钥（用于云端AI）或
+  - Ollama安装（用于本地AI）
 
-### API配置
+### AI配置
 
-要启用AI玩家功能，需要配置Google Gemini API：
+本游戏支持两种AI提供商：**Gemini**（Google AI）和**Ollama**（本地AI）。请选择最适合您需求的方案。
+
+#### 环境变量设置
+
+在根目录创建`.env`文件，包含以下配置：
+
+```env
+# AI提供商配置
+# 选择您的AI提供商：'gemini' 或 'ollama'
+REACT_APP_AI_PROVIDER=gemini
+
+# Gemini配置（Google AI）
+# 从这里获取API密钥：https://makersuite.google.com/app/apikey
+REACT_APP_GEMINI_API_KEY=your_gemini_api_key_here
+REACT_APP_GEMINI_MODEL=gemini-2.5-flash
+
+# Ollama配置（本地AI）
+# 确保Ollama在本地或服务器上运行
+REACT_APP_OLLAMA_BASE_URL=http://localhost:11434
+REACT_APP_OLLAMA_MODEL=gemma3:4b
+```
+
+#### 方案一：使用Gemini（Google AI）
 
 1. **获取Gemini API密钥：**
-   - 访问 [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - 访问 [Google AI Studio](https://makersuite.google.com/app/apikey)
    - 使用Google账户登录
    - 创建新的API密钥
    - 复制生成的API密钥
 
 2. **配置环境变量：**
-   - 将`.env.example`复制为根目录下的`.env`文件
-   - 在`.env`文件中添加你的Gemini API密钥：
-   ```
-   REACT_APP_GEMINI_API_KEY=your_api_key_here
+   - 设置 `REACT_APP_AI_PROVIDER=gemini`
+   - 将API密钥添加到 `REACT_APP_GEMINI_API_KEY`
+   - 选择模型（可选，默认为gemini-2.5-flash）
+
+**推荐的Gemini模型：**
+- `gemini-2.5-flash` - 最新稳定模型（默认）
+- `gemini-1.5-flash` - 快速可靠
+- `gemini-1.5-pro` - 更强大但较慢
+
+#### 方案二：使用Ollama（本地AI）
+
+1. **安装Ollama：**
+   - 从 [ollama.ai](https://ollama.ai/) 下载
+   - 安装并启动服务
+
+2. **拉取AI模型：**
+   ```bash
+   # 安装默认模型
+   ollama pull gemma3:4b
+   
+   # 或尝试其他模型
+   ollama pull gemma2:9b
+   ollama pull llama3.2:3b
+   ollama pull qwen2.5:7b
    ```
 
-**重要说明：**
-- Gemini API可能不在所有地区可用。如果遇到地理限制，可考虑使用VPN或替代AI服务。
-- 请保护好你的API密钥，切勿将其提交到版本控制中。
-- API密钥是AI玩家功能必需的。没有它，只能使用人类玩家。
+3. **配置环境变量：**
+   - 设置 `REACT_APP_AI_PROVIDER=ollama`
+   - 设置基础URL（默认为http://localhost:11434）
+   - 选择模型（默认为gemma3:4b）
+
+**推荐的Ollama模型：**
+- `gemma3:4b` - 速度和质量的良好平衡（默认）
+- `gemma2:9b` - 更好质量，需要更多内存
+- `llama3.2:3b` - Meta的Llama模型
+- `qwen2.5:7b` - 阿里巴巴的Qwen模型
+
+#### 切换提供商
+
+只需更改 `REACT_APP_AI_PROVIDER` 的值：
+- `gemini` - 使用Google的Gemini API（需要API密钥）
+- `ollama` - 使用本地Ollama安装（需要本地设置）
+
+#### 故障排除
+
+**Gemini问题：**
+- **地理限制**：某些地区不支持Gemini。考虑使用Ollama替代。
+- **API密钥错误**：请检查API密钥是否正确
+- **速率限制**：请稍等片刻后重试
+
+**Ollama问题：**
+- **连接错误**：确保Ollama正在运行（`ollama serve`）
+- **模型未找到**：请先拉取模型（`ollama pull model-name`）
+- **服务器错误**：检查Ollama日志
+
+#### 性能对比
+
+| 提供商 | 速度 | 质量 | 隐私 | 成本 |
+|--------|------|------|------|------|
+| Gemini | 快速 | 高 | 云端 | 按使用付费 |
+| Ollama | 可变 | 可变 | 本地 | 免费 |
+
+**根据需求选择：**
+- **Gemini**：一致的高质量响应，需要互联网和API密钥
+- **Ollama**：更好的隐私和离线使用，性能取决于硬件配置
 
 ### 安装步骤
 

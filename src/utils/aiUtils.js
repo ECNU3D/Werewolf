@@ -1,5 +1,166 @@
 import { ROLES } from '../constants/gameConstants';
 
+// AI Provider Configuration
+const getAIConfig = () => {
+  const provider = process.env.REACT_APP_AI_PROVIDER || 'gemini'; // Default to gemini
+  const config = {
+    provider: provider.toLowerCase(),
+  };
+
+  if (config.provider === 'ollama') {
+    config.baseUrl = process.env.REACT_APP_OLLAMA_BASE_URL || 'http://localhost:11434';
+    config.model = process.env.REACT_APP_OLLAMA_MODEL || 'gemma3:4b'; // Default model
+  } else if (config.provider === 'gemini') {
+    config.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    config.model = process.env.REACT_APP_GEMINI_MODEL || 'gemini-2.5-flash'; // Default model
+  }
+
+  return config;
+};
+
+// Ollama API call function
+const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
+  const apiUrl = `${config.baseUrl}/api/generate`;
+  
+  const payload = {
+    model: config.model,
+    prompt: prompt,
+    stream: false,
+    options: {
+      temperature: 0.7,
+      top_p: 0.9,
+      stop: ["\n", "Player", "---"]
+    }
+  };
+
+  console.debug(`[OLLAMA_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model} | URL: ${apiUrl}`);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`[OLLAMA_ERROR] AI ${aiPlayer.id} (${promptPurpose}) | Status: ${response.status} | Error: ${errorBody}`);
+      
+      if (response.status === 404) {
+        addLog(`🤖 AI ${aiPlayer.id} - Ollama model '${config.model}' not found. Please pull the model first: ollama pull ${config.model}`, 'error', true);
+      } else if (response.status === 500) {
+        addLog(`🔧 AI ${aiPlayer.id} - Ollama server error. Check if Ollama is running on ${config.baseUrl}`, 'error', true);
+      } else {
+        addLog(`🚫 AI ${aiPlayer.id} - Ollama API Error (${response.status}): Check console for details.`, 'error', true);
+      }
+      return null;
+    }
+
+    const result = await response.json();
+    console.debug(`[OLLAMA_RAW_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}):\n${JSON.stringify(result, null, 2)}`);
+
+    if (result.response) {
+      let text = result.response.trim();
+      console.debug(`[OLLAMA_EXTRACTED_TEXT] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
+      return text;
+    } else {
+      console.error(`[OLLAMA_ERROR] AI ${aiPlayer.id} (${promptPurpose}) No response in result:`, result);
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Unexpected Ollama response structure.`, 'error', true);
+      return null;
+    }
+  } catch (error) {
+    console.error(`[OLLAMA_CATCH_ERROR] Error calling Ollama API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to Ollama at ${config.baseUrl}. Check if Ollama is running.`, 'error', true);
+    } else {
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Ollama error: ${error.message}`, 'error', true);
+    }
+    return null;
+  }
+};
+
+// Gemini API call function
+const callGeminiAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
+  if (!config.apiKey || config.apiKey.trim() === '') {
+    console.error("[GEMINI_ERROR] Gemini API key is not configured. Please set REACT_APP_GEMINI_API_KEY in your .env file.");
+    addLog(`AI ${aiPlayer.id} (${promptPurpose}) Gemini API key not configured. Please check environment variables.`, 'error', true);
+    return null;
+  }
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
+  
+  const payload = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { stopSequences: ["\n"] }
+  };
+
+  console.debug(`[GEMINI_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model}`);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorBody);
+      } catch (e) {
+        errorData = { error: { message: errorBody } };
+      }
+      
+      console.error(`[GEMINI_ERROR] AI ${aiPlayer.id} (${promptPurpose}) | Status: ${response.status} | Error: ${errorBody}`);
+      
+      // Handle specific error types
+      if (errorData.error && errorData.error.message) {
+        const errorMessage = errorData.error.message;
+        if (errorMessage.includes("User location is not supported")) {
+          addLog(`🌍 AI ${aiPlayer.id} - Geographic restriction: Gemini API is not available in your region. Consider using Ollama instead.`, 'error', true);
+        } else if (errorMessage.includes("API key")) {
+          addLog(`🔑 AI ${aiPlayer.id} - API Key error: ${errorMessage}`, 'error', true);
+        } else if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
+          addLog(`📊 AI ${aiPlayer.id} - Rate limit reached. Please wait and try again.`, 'error', true);
+        } else {
+          addLog(`🚫 AI ${aiPlayer.id} - Gemini API Error: ${errorMessage}`, 'error', true);
+        }
+      } else {
+        addLog(`AI ${aiPlayer.id} (${promptPurpose}) Gemini API request failed: ${response.status}. Check console for details.`, 'error', true);
+      }
+      return null;
+    }
+
+    const result = await response.json();
+    console.debug(`[GEMINI_RAW_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}):\n${JSON.stringify(result, null, 2)}`);
+
+    if (result.candidates && result.candidates.length > 0 &&
+        result.candidates[0].content && result.candidates[0].content.parts &&
+        result.candidates[0].content.parts.length > 0) {
+      let text = result.candidates[0].content.parts[0].text.trim();
+      console.debug(`[GEMINI_EXTRACTED_TEXT] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
+      return text;
+    } else {
+      console.error(`[GEMINI_ERROR] AI ${aiPlayer.id} (${promptPurpose}) Unexpected API response structure:`, result);
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Unexpected Gemini response structure. Check console for details.`, 'error', true);
+      if (result.promptFeedback && result.promptFeedback.blockReason) {
+          addLog(`AI ${aiPlayer.id} Prompt blocked: ${result.promptFeedback.blockReason}`, 'error', true);
+          console.error(`[GEMINI_PROMPT_FEEDBACK] AI ${aiPlayer.id} Prompt blocked: ${result.promptFeedback.blockReason} | Details: ${JSON.stringify(result.promptFeedback.safetyRatings)}`);
+      }
+      return null; 
+    }
+  } catch (error) {
+    console.error(`[GEMINI_CATCH_ERROR] Error calling Gemini API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to Gemini API. Check your internet connection.`, 'error', true);
+    } else {
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Gemini thinking error: ${error.message}`, 'error', true);
+    }
+    return null;
+  }
+};
+
 export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_param, gameState) => {
   const { 
     players, 
@@ -11,7 +172,11 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
     addLog 
   } = gameState;
 
-  console.debug(`[AI_DECISION_START] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose}`);
+  // Get AI configuration
+  const config = getAIConfig();
+  console.debug(`[AI_CONFIG] Using provider: ${config.provider}, model: ${config.model}`);
+
+  console.debug(`[AI_DECISION_START] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose} | Provider: ${config.provider}`);
   let basePrompt = `${aiPlayer.aiSystemPrompt}\n`;
   basePrompt += `--- Current Game History and State (newest at bottom) ---\n${currentHistory_param.map(log => `${log.timestamp} [${log.type === 'human' ? `Player ${humanPlayerId}` : (log.type === 'ai' ? `Player ${aiPlayer.id}` : 'System')}] ${log.text}`).slice(-20).join('\n')}\n---\n`;
   
@@ -86,108 +251,45 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
   }
 
   const fullPrompt = `${basePrompt}\n--- Your Task ---\n${specificQuestion}\n${expectedFormat}`;
-  console.debug(`[AI_PROMPT_SENT] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose}\nPrompt content:\n${fullPrompt}`);
+  console.debug(`[AI_PROMPT_SENT] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose} | Provider: ${config.provider}\nPrompt content:\n${fullPrompt}`);
   
-  console.debug('[ENV_DEBUG] All environment variables:', process.env);
-  console.debug('[ENV_DEBUG] REACT_APP variables:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
-  
-  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-  console.debug(`[API_KEY_CHECK] Raw value: "${apiKey}"`);
-  console.debug(`[API_KEY_CHECK] Type: ${typeof apiKey}`);
-  console.debug(`[API_KEY_CHECK] Length: ${apiKey ? apiKey.length : 'undefined'}`);
-  console.debug(`[API_KEY_CHECK] Trimmed: "${apiKey ? apiKey.trim() : 'undefined'}"`);
-  
-  if (!apiKey || apiKey.trim() === '') {
-    console.error("[API_ERROR] Gemini API key is not configured. Please set REACT_APP_GEMINI_API_KEY in your .env file.");
-    addLog(`AI ${aiPlayer.id} (${promptPurpose}) API key not configured. Please check environment variables.`, 'error', true);
+  // Route to appropriate AI provider
+  let rawResponse;
+  if (config.provider === 'ollama') {
+    rawResponse = await callOllamaAPI(fullPrompt, config, aiPlayer, promptPurpose, addLog);
+  } else if (config.provider === 'gemini') {
+    rawResponse = await callGeminiAPI(fullPrompt, config, aiPlayer, promptPurpose, addLog);
+  } else {
+    console.error(`[AI_ERROR] Unknown AI provider: ${config.provider}`);
+    addLog(`AI ${aiPlayer.id} - Unknown AI provider: ${config.provider}. Please set REACT_APP_AI_PROVIDER to 'gemini' or 'ollama'.`, 'error', true);
     return null;
   }
-  const modelName = "gemini-2.5-flash";
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-  
-  const payload = {
-    contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-    generationConfig: { stopSequences: ["\n"] }
-  };
 
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const errorBody = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorBody);
-      } catch (e) {
-        errorData = { error: { message: errorBody } };
-      }
-      
-      console.error(`[API_ERROR] AI ${aiPlayer.id} (${promptPurpose}) | Status: ${response.status} | Error: ${errorBody}`);
-      
-      // Handle specific error types
-      if (errorData.error && errorData.error.message) {
-        const errorMessage = errorData.error.message;
-        if (errorMessage.includes("User location is not supported")) {
-          addLog(`🌍 AI ${aiPlayer.id} - Geographic restriction: Gemini API is not available in your region. Consider using a VPN or alternative AI service.`, 'error', true);
-        } else if (errorMessage.includes("API key")) {
-          addLog(`🔑 AI ${aiPlayer.id} - API Key error: ${errorMessage}`, 'error', true);
-        } else if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
-          addLog(`📊 AI ${aiPlayer.id} - Rate limit reached. Please wait and try again.`, 'error', true);
-        } else {
-          addLog(`🚫 AI ${aiPlayer.id} - API Error: ${errorMessage}`, 'error', true);
-        }
-      } else {
-        addLog(`AI ${aiPlayer.id} (${promptPurpose}) API request failed: ${response.status}. Check console for details.`, 'error', true);
-      }
-      return null;
-    }
-    const result = await response.json();
-    console.debug(`[AI_RAW_GEMINI_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}):\n${JSON.stringify(result, null, 2)}`);
-
-    if (result.candidates && result.candidates.length > 0 &&
-        result.candidates[0].content && result.candidates[0].content.parts &&
-        result.candidates[0].content.parts.length > 0) {
-      let text = result.candidates[0].content.parts[0].text.trim();
-      console.debug(`[AI_EXTRACTED_TEXT_BEFORE_CLEAN] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
-      text = text.replace(/`/g, '').replace(/\n/g, ' ').trim();
-      console.debug(`[AI_CLEANED_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
-      
-      if (promptPurpose.endsWith('_TARGET') || promptPurpose === 'SEER_CHECK' || promptPurpose === 'GUARD_PROTECT' || promptPurpose === 'VOTE_PLAYER') {
-          if (!/^\d+$/.test(text)) {
-              addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be numeric ID): "${text}"`, 'error', false); 
-              console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be numeric ID): "${text}"`);
-              const numMatch = text.match(/\d+/);
-              if (numMatch) text = numMatch[0]; else return null; 
-          }
-      } else if (promptPurpose === 'WITCH_SAVE_CHOICE' || promptPurpose === 'HUNTER_SHOOT' || promptPurpose === 'WITCH_POISON_CHOICE') {
-          if (!/^(yes|no|\d+)$/i.test(text)) {
-               addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`, 'error', false); 
-               console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`);
-               if (text.toLowerCase().includes('yes')) text = 'yes';
-               else if (text.toLowerCase().includes('no')) text = 'no';
-               else { const numMatch = text.match(/\d+/); if (numMatch) text = numMatch[0]; else return null;}
-          }
-      }
-      return text;
-    } else {
-      console.error(`[API_ERROR] AI ${aiPlayer.id} (${promptPurpose}) Unexpected API response structure:`, result);
-      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Unexpected API response structure. Check console for details.`, 'error', true);
-      if (result.promptFeedback && result.promptFeedback.blockReason) {
-          addLog(`AI ${aiPlayer.id} Prompt blocked: ${result.promptFeedback.blockReason}`, 'error', true);
-          console.error(`[API_PROMPT_FEEDBACK] AI ${aiPlayer.id} Prompt blocked: ${result.promptFeedback.blockReason} | Details: ${JSON.stringify(result.promptFeedback.safetyRatings)}`);
-      }
-      return null; 
-    }
-  } catch (error) {
-    console.error(`[API_CATCH_ERROR] Error calling Gemini API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
-    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to AI service. Check your internet connection.`, 'error', true);
-    } else {
-      addLog(`AI ${aiPlayer.id} (${promptPurpose}) thinking error: ${error.message}`, 'error', true);
-    }
+  if (!rawResponse) {
     return null;
   }
+
+  // Clean and validate response
+  let text = rawResponse.replace(/`/g, '').replace(/\n/g, ' ').trim();
+  console.debug(`[AI_CLEANED_RESPONSE] AI Player ${aiPlayer.id} (${promptPurpose}): "${text}"`);
+  
+  // Response format validation
+  if (promptPurpose.endsWith('_TARGET') || promptPurpose === 'SEER_CHECK' || promptPurpose === 'GUARD_PROTECT' || promptPurpose === 'VOTE_PLAYER') {
+      if (!/^\d+$/.test(text)) {
+          addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be numeric ID): "${text}"`, 'error', false); 
+          console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be numeric ID): "${text}"`);
+          const numMatch = text.match(/\d+/);
+          if (numMatch) text = numMatch[0]; else return null; 
+      }
+  } else if (promptPurpose === 'WITCH_SAVE_CHOICE' || promptPurpose === 'HUNTER_SHOOT' || promptPurpose === 'WITCH_POISON_CHOICE') {
+      if (!/^(yes|no|\d+)$/i.test(text)) {
+           addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`, 'error', false); 
+           console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`);
+           if (text.toLowerCase().includes('yes')) text = 'yes';
+           else if (text.toLowerCase().includes('no')) text = 'no';
+           else { const numMatch = text.match(/\d+/); if (numMatch) text = numMatch[0]; else return null;}
+      }
+  }
+  
+  return text;
 }; 
