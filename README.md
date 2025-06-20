@@ -104,6 +104,7 @@ This option supports multiple providers that use OpenAI-compatible endpoints, in
    - **OpenAI**: Visit [OpenAI Platform](https://platform.openai.com/api-keys)
    - **OpenRouter**: Visit [OpenRouter Keys](https://openrouter.ai/keys) - Access to 200+ models
    - **Together AI**: Visit [Together AI](https://api.together.xyz/) - Fast inference
+   - **阿里云百炼**: Visit [阿里云百炼](https://bailian.console.aliyun.com/#/home) - Multiple model selection
    - **Other providers**: Check their documentation for API keys
 
 2. **Configure Environment Variables:**
@@ -387,6 +388,7 @@ REACT_APP_OLLAMA_MODEL=gemma3:4b
    - **OpenAI**: 访问 [OpenAI平台](https://platform.openai.com/api-keys)
    - **OpenRouter**: 访问 [OpenRouter密钥](https://openrouter.ai/keys) - 访问200+模型
    - **Together AI**: 访问 [Together AI](https://api.together.xyz/) - 快速推理
+   - **阿里云百炼**: 访问 [阿里云百炼](https://bailian.console.aliyun.com/#/home) - 访问Qwen和DeepSeek相关的模型
    - **其他提供商**: 查看其文档获取API密钥
 
 2. **配置环境变量：**
