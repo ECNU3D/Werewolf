@@ -1,5 +1,8 @@
 import { ROLES } from '../constants/gameConstants';
 
+// Check if we're in production mode (served by nginx proxy)
+const isProduction = process.env.NODE_ENV === 'production';
+
 // AI Provider Configuration
 const getAIConfig = () => {
   const provider = process.env.REACT_APP_AI_PROVIDER || 'gemini'; // Default to gemini
@@ -7,16 +10,31 @@ const getAIConfig = () => {
     provider: provider.toLowerCase(),
   };
 
-  if (config.provider === 'ollama') {
-    config.baseUrl = process.env.REACT_APP_OLLAMA_BASE_URL || 'http://localhost:11434';
-    config.model = process.env.REACT_APP_OLLAMA_MODEL || 'gemma3:4b'; // Default model
-  } else if (config.provider === 'gemini') {
-    config.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    config.model = process.env.REACT_APP_GEMINI_MODEL || 'gemini-2.5-flash'; // Default model
-  } else if (config.provider === 'openai') {
-    config.baseUrl = process.env.REACT_APP_OPENAI_BASE_URL || 'https://api.openai.com/v1';
-    config.apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-    config.model = process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-mini'; // Default model
+  if (isProduction) {
+    // In production, use nginx proxy endpoints
+    config.useProxy = true;
+    // Use provider-specific model configuration
+    if (config.provider === 'ollama') {
+      config.model = process.env.REACT_APP_OLLAMA_MODEL || 'gemma3:4b';
+    } else if (config.provider === 'gemini') {
+      config.model = process.env.REACT_APP_GEMINI_MODEL || 'gemini-2.5-flash';
+    } else if (config.provider === 'openai') {
+      config.model = process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-mini';
+    }
+  } else {
+    // In development, use direct API calls
+    config.useProxy = false;
+    if (config.provider === 'ollama') {
+      config.baseUrl = process.env.REACT_APP_OLLAMA_BASE_URL || 'http://localhost:11434';
+      config.model = process.env.REACT_APP_OLLAMA_MODEL || 'gemma3:4b'; // Default model
+    } else if (config.provider === 'gemini') {
+      config.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      config.model = process.env.REACT_APP_GEMINI_MODEL || 'gemini-2.5-flash'; // Default model
+    } else if (config.provider === 'openai') {
+      config.baseUrl = process.env.REACT_APP_OPENAI_BASE_URL || 'https://api.openai.com/v1';
+      config.apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      config.model = process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-mini'; // Default model
+    }
   }
 
   return config;
@@ -24,25 +42,44 @@ const getAIConfig = () => {
 
 // Ollama API call function
 const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
-  const apiUrl = `${config.baseUrl}/api/generate`;
-  
-  const payload = {
-    model: config.model,
-    prompt: prompt,
-    stream: false,
-    options: {
-      temperature: 0.7,
-      top_p: 0.9,
-      stop: ["\n", "Player", "---"]
-    }
-  };
+  let apiUrl, payload, headers;
+
+  if (config.useProxy) {
+    // Use nginx proxy endpoint
+    apiUrl = '/api/ollama/generate';
+    payload = {
+      model: config.model,
+      prompt: prompt,
+      stream: false,
+      options: {
+        temperature: 0.7,
+        top_p: 0.9,
+        stop: ["\n", "Player", "---"]
+      }
+    };
+    headers = { 'Content-Type': 'application/json' };
+  } else {
+    // Direct API call for development
+    apiUrl = `${config.baseUrl}/api/generate`;
+    payload = {
+      model: config.model,
+      prompt: prompt,
+      stream: false,
+      options: {
+        temperature: 0.7,
+        top_p: 0.9,
+        stop: ["\n", "Player", "---"]
+      }
+    };
+    headers = { 'Content-Type': 'application/json' };
+  }
 
   console.debug(`[OLLAMA_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model} | URL: ${apiUrl}`);
 
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(payload)
     });
 
@@ -53,7 +90,7 @@ const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
       if (response.status === 404) {
         addLog(`🤖 AI ${aiPlayer.id} - Ollama model '${config.model}' not found. Please pull the model first: ollama pull ${config.model}`, 'error', true);
       } else if (response.status === 500) {
-        addLog(`🔧 AI ${aiPlayer.id} - Ollama server error. Check if Ollama is running on ${config.baseUrl}`, 'error', true);
+        addLog(`🔧 AI ${aiPlayer.id} - Ollama server error. Check if Ollama is running${config.useProxy ? ' on the backend' : ` on ${config.baseUrl}`}`, 'error', true);
       } else {
         addLog(`🚫 AI ${aiPlayer.id} - Ollama API Error (${response.status}): Check console for details.`, 'error', true);
       }
@@ -75,7 +112,7 @@ const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
   } catch (error) {
     console.error(`[OLLAMA_CATCH_ERROR] Error calling Ollama API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
     if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to Ollama at ${config.baseUrl}. Check if Ollama is running.`, 'error', true);
+      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to Ollama${config.useProxy ? ' backend' : ` at ${config.baseUrl}`}. Check if Ollama is running.`, 'error', true);
     } else {
       addLog(`AI ${aiPlayer.id} (${promptPurpose}) Ollama error: ${error.message}`, 'error', true);
     }
@@ -85,25 +122,39 @@ const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
 
 // Gemini API call function
 const callGeminiAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
-  if (!config.apiKey || config.apiKey.trim() === '') {
-    console.error("[GEMINI_ERROR] Gemini API key is not configured. Please set REACT_APP_GEMINI_API_KEY in your .env file.");
-    addLog(`AI ${aiPlayer.id} (${promptPurpose}) Gemini API key not configured. Please check environment variables.`, 'error', true);
-    return null;
-  }
+  let apiUrl, payload, headers;
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
-  
-  const payload = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { stopSequences: ["\n"] }
-  };
+  if (config.useProxy) {
+    // Use nginx proxy endpoint
+    apiUrl = '/api/gemini/generate';
+    payload = {
+      model: config.model,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { stopSequences: ["\n"] }
+    };
+    headers = { 'Content-Type': 'application/json' };
+  } else {
+    // Direct API call for development
+    if (!config.apiKey || config.apiKey.trim() === '') {
+      console.error("[GEMINI_ERROR] Gemini API key is not configured. Please set REACT_APP_GEMINI_API_KEY in your .env file.");
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) Gemini API key not configured. Please check environment variables.`, 'error', true);
+      return null;
+    }
+
+    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
+    payload = {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { stopSequences: ["\n"] }
+    };
+    headers = { 'Content-Type': 'application/json' };
+  }
 
   console.debug(`[GEMINI_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model}`);
 
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(payload)
     });
 
@@ -167,31 +218,47 @@ const callGeminiAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
 
 // OpenAI compatible API call function
 const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) => {
-  if (!config.apiKey || config.apiKey.trim() === '') {
-    console.error("[OPENAI_ERROR] OpenAI API key is not configured. Please set REACT_APP_OPENAI_API_KEY in your .env file.");
-    addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI API key not configured. Please check environment variables.`, 'error', true);
-    return null;
-  }
+  let apiUrl, payload, headers;
 
-  const apiUrl = `${config.baseUrl}/chat/completions`;
-  
-  const payload = {
-    model: config.model,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
-    max_tokens: 150,
-    stop: ["\n", "Player", "---"]
-  };
+  if (config.useProxy) {
+    // Use nginx proxy endpoint
+    apiUrl = '/api/openai/chat/completions';
+    payload = {
+      model: config.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 150,
+      stop: ["\n", "Player", "---"]
+    };
+    headers = { 'Content-Type': 'application/json' };
+  } else {
+    // Direct API call for development
+    if (!config.apiKey || config.apiKey.trim() === '') {
+      console.error("[OPENAI_ERROR] OpenAI API key is not configured. Please set REACT_APP_OPENAI_API_KEY in your .env file.");
+      addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI API key not configured. Please check environment variables.`, 'error', true);
+      return null;
+    }
+
+    apiUrl = `${config.baseUrl}/chat/completions`;
+    payload = {
+      model: config.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 150,
+      stop: ["\n", "Player", "---"]
+    };
+    headers = { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`
+    };
+  }
 
   console.debug(`[OPENAI_REQUEST] AI Player ${aiPlayer.id} (${promptPurpose}) | Model: ${config.model} | URL: ${apiUrl}`);
 
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`
-      },
+      headers: headers,
       body: JSON.stringify(payload)
     });
 
@@ -241,7 +308,7 @@ const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
   } catch (error) {
     console.error(`[OPENAI_CATCH_ERROR] Error calling OpenAI API (AI ${aiPlayer.id}, ${promptPurpose}):`, error);
     if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to OpenAI API at ${config.baseUrl}. Check your internet connection.`, 'error', true);
+      addLog(`🌐 AI ${aiPlayer.id} - Network error: Unable to connect to OpenAI API${config.useProxy ? ' backend' : ` at ${config.baseUrl}`}. Check your internet connection.`, 'error', true);
     } else {
       addLog(`AI ${aiPlayer.id} (${promptPurpose}) OpenAI thinking error: ${error.message}`, 'error', true);
     }
