@@ -25,6 +25,10 @@ if [ "$(docker ps -aq -f name=werewolf-game)" ]; then
 else
     echo -e "${YELLOW}❌ No werewolf-game container found!${NC}"
     echo "Please run './deploy.sh' first to build and create the container."
+    echo ""
+    echo "Available options:"
+    echo "  ./deploy.sh                     # Build and run locally"
+    echo "  ./deploy.sh --multi-platform    # Build multi-platform version"
     exit 1
 fi
 
