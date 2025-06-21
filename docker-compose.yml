@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  werewolf-app:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      # AI Provider Configuration
+      # Choose: 'gemini', 'openai', or 'ollama'
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      
+      # Gemini Configuration
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      
+      # Ollama Configuration
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+    depends_on:
+      - ollama
+    networks:
+      - werewolf-network
+
+  # Optional Ollama service for local AI
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+    networks:
+      - werewolf-network
+    # Uncomment the following lines if you have NVIDIA GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_data:
+
+networks:
+  werewolf-network:
+    driver: bridge 
