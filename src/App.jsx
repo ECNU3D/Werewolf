@@ -3,7 +3,9 @@ import { GAME_PHASES, ROLES } from './constants/gameConstants';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useGamePhaseManager } from './hooks/useGamePhaseManager';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { logManager, LOG_CATEGORIES } from './utils/logManager';
 import LanguageSelection from './components/LanguageSelection';
 import SetupScreen from './components/SetupScreen';
 import GameOverScreen from './components/GameOverScreen';
@@ -12,6 +14,7 @@ import GameInfo from './components/GameInfo';
 import ActionPanel from './components/ActionPanel';
 import GameLog from './components/GameLog';
 import PlayerCard from './components/PlayerCard';
+import TTSControls from './components/TTSControls';
 
 const GameComponent = () => {
   const { currentLanguage, t, tr, tp } = useLanguage();
@@ -19,8 +22,11 @@ const GameComponent = () => {
   // Use the main game logic hook
   const gameLogic = useGameLogic();
   
+  // Use text-to-speech hook
+  const tts = useTextToSpeech();
+
   // Use the game phase manager hook
-  useGamePhaseManager(gameLogic);
+  useGamePhaseManager(gameLogic, tts);
   
   // Extract values from game logic hook
   const {
@@ -45,6 +51,9 @@ const GameComponent = () => {
     setPlayers,
     setWinner,
     addLog,
+    addPublicLog,
+    addPrivateLog,
+    addNightActionLog,
     initializeGame,
     handleAIVoting
   } = gameLogic;
@@ -63,13 +72,14 @@ const GameComponent = () => {
   // Handle speech submission
   const handleSpeechSubmission = useCallback(() => {
     if (humanPlayerSpeech.trim()) {
-      addLog(t('speech.yourSpeech', { id: humanPlayerId, text: humanPlayerSpeech }), 'human', true);
+      // Record human speech in discussion category for complete history
+      addPublicLog(t('speech.yourSpeech', { id: humanPlayerId, text: humanPlayerSpeech }), 'human', LOG_CATEGORIES.DISCUSSION);
     } else {
-      addLog(t('speech.skipSpeech', { id: humanPlayerId }), 'human', true);
+      addPublicLog(t('speech.skipSpeech', { id: humanPlayerId }), 'human', LOG_CATEGORIES.DISCUSSION);
     }
     setHumanPlayerSpeech('');
     gameLogic.handleNextSpeaker();
-  }, [humanPlayerSpeech, humanPlayerId, addLog, setHumanPlayerSpeech, gameLogic, t]);
+  }, [humanPlayerSpeech, humanPlayerId, addPublicLog, setHumanPlayerSpeech, gameLogic, t]);
 
   // Handle player actions
   const handlePlayerAction = async (actionType, targetId) => {
@@ -79,7 +89,7 @@ const GameComponent = () => {
     console.debug(`[HANDLE_PLAYER_ACTION] Action: ${actionType}, Target: ${targetId}, Current Phase: ${gamePhase}`);
     const humanPlayer = players.find(p => p.isHuman);
     if (!humanPlayer || !humanPlayer.isAlive && !(humanPlayer.role === ROLES.HUNTER && gamePhase === GAME_PHASES.HUNTER_MAY_ACT)) {
-        addLog(t('errors.cannotAction'), 'system', true); 
+        addPublicLog(t('errors.cannotAction'), 'system'); 
         isProcessingStepRef.current = false;
         return;
     }
@@ -88,36 +98,59 @@ const GameComponent = () => {
     switch (gamePhase) {
       case GAME_PHASES.WEREWOLVES_ACT:
         if (humanPlayer.role === ROLES.WEREWOLF) {
-          if (targetId === null || targetId === undefined) { addLog(t('errors.needTarget'), 'system', true); isProcessingStepRef.current = false; return; }
+          if (targetId === null || targetId === undefined) { addPublicLog(t('errors.needTarget'), 'system'); isProcessingStepRef.current = false; return; }
           const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer || !targetPlayer.isAlive) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; }
+          if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
           gameLogic.setWerewolfTargetId(targetId);
-          addLog(t('actions.werewolfSelected', { playerId: targetId }), 'human', true);
+          
+          // Log werewolf action - only visible to werewolves
+          addNightActionLog('werewolf_kill', {
+            playerId: humanPlayer.id,
+            targetId: targetId,
+            wasSuccessful: true
+          }, humanPlayer.role);
+          
+          addPrivateLog(t('actions.werewolfSelected', { playerId: targetId }), [ROLES.WEREWOLF], [humanPlayer.id], 'human');
           nextPhaseToSet = GAME_PHASES.GUARD_ACTS; 
         }
         break;
       case GAME_PHASES.GUARD_ACTS:
         if (humanPlayer.role === ROLES.GUARD) {
-          if (targetId === null || targetId === undefined) { addLog(t('actions.guardNeedTarget'), 'system', true); isProcessingStepRef.current = false; return; }
-          if (targetId === guardLastProtectedId) { addLog(t('errors.cannotProtectSame'), 'system', true); isProcessingStepRef.current = false; return; }
+          if (targetId === null || targetId === undefined) { addPublicLog(t('actions.guardNeedTarget'), 'system'); isProcessingStepRef.current = false; return; }
+          if (targetId === guardLastProtectedId) { addPublicLog(t('errors.cannotProtectSame'), 'system'); isProcessingStepRef.current = false; return; }
           const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer || !targetPlayer.isAlive) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; }
+          if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
           setPlayers(prev => prev.map(p => p.id === targetId ? { ...p, isProtected: true } : p));
           gameLogic.setGuardLastProtectedId(targetId);
-          addLog(t('actions.guardSelected', { playerId: targetId }), 'human', true);
+          
+          // Log guard action - only visible to guard
+          addNightActionLog('guard_protect', {
+            playerId: humanPlayer.id,
+            targetId: targetId
+          }, humanPlayer.role);
+          
+          addPrivateLog(t('actions.guardSelected', { playerId: targetId }), [ROLES.GUARD], [humanPlayer.id], 'human');
           nextPhaseToSet = GAME_PHASES.SEER_ACTS;
         }
         break;
       case GAME_PHASES.SEER_ACTS:
         if (humanPlayer.role === ROLES.SEER) {
-          if (targetId === null || targetId === undefined) { addLog(t('actions.seerNeedTarget'), 'system', true); isProcessingStepRef.current = false; return; }
+          if (targetId === null || targetId === undefined) { addPublicLog(t('actions.seerNeedTarget'), 'system'); isProcessingStepRef.current = false; return; }
           const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; } 
-          if (!targetPlayer.isAlive) { addLog(t('actions.seerOnlyAlive'), 'system', true); isProcessingStepRef.current = false; return;}
+          if (!targetPlayer) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; } 
+          if (!targetPlayer.isAlive) { addPublicLog(t('actions.seerOnlyAlive'), 'system'); isProcessingStepRef.current = false; return;}
           const revealedRole = targetPlayer.role;
           gameLogic.setSeerLastCheck({ targetId, targetRole: revealedRole });
           console.info(`[SEER PRIVATE] Player ${humanPlayerId} (Seer) checked Player ${targetId}: ${revealedRole}`);
-          addLog(t('actions.seerChecked', { playerId: targetId }), 'human', true); 
+          
+          // Log seer action - only visible to seer, including the result
+          addNightActionLog('seer_check', {
+            playerId: humanPlayer.id,
+            targetId: targetId,
+            reason: tr(revealedRole)
+          }, humanPlayer.role);
+          
+          addPrivateLog(t('actions.seerChecked', { playerId: targetId }), [ROLES.SEER], [humanPlayer.id], 'human'); 
           nextPhaseToSet = GAME_PHASES.WITCH_ACTS_SAVE;
         }
         break;
@@ -126,14 +159,21 @@ const GameComponent = () => {
           const targetPlayer = players.find(p => p.id === werewolfTargetId);
           if (actionType === 'USE_ANTIDOTE' && witchPotions.antidote) {
             if (!targetPlayer || !targetPlayer.isAlive || !werewolfTargetId) {
-                addLog(t('actions.antidoteNoTarget'), 'system', true);
+                addPublicLog(t('actions.antidoteNoTarget'), 'system');
             } else {
                 setPlayers(prev => prev.map(p => p.id === werewolfTargetId ? { ...p, isHealedByWitch: true } : p));
                 gameLogic.setWitchPotions(prev => ({ ...prev, antidote: false }));
-                addLog(t('actions.usedAntidote', { playerId: werewolfTargetId }), 'human', true);
+                
+                // Log witch save action - only visible to witch
+                addNightActionLog('witch_save', {
+                  playerId: humanPlayer.id,
+                  targetId: werewolfTargetId
+                }, humanPlayer.role);
+                
+                addPrivateLog(t('actions.usedAntidote', { playerId: werewolfTargetId }), [ROLES.WITCH], [humanPlayer.id], 'human');
             }
           } else if (actionType === 'SKIP_ANTIDOTE' || !witchPotions.antidote) { 
-            addLog(t('actions.skippedAntidote', { reason: !witchPotions.antidote ? ` (${t('gameInfo.antidoteUsed')})` : '' }), 'human', true);
+            addPrivateLog(t('actions.skippedAntidote', { reason: !witchPotions.antidote ? ` (${t('gameInfo.antidoteUsed')})` : '' }), [ROLES.WITCH], [humanPlayer.id], 'human');
           }
         }
         setGamePhase(GAME_PHASES.WITCH_ACTS_POISON); 
@@ -143,13 +183,20 @@ const GameComponent = () => {
         if (humanPlayer.role === ROLES.WITCH) {
           if (actionType === 'USE_POISON' && targetId !== null && witchPotions.poison) {
             const targetPlayer = players.find(p => p.id === targetId);
-            if (!targetPlayer || !targetPlayer.isAlive) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; }
-            if (targetPlayer.id === humanPlayer.id) { addLog(t('errors.witchCannotPoisonSelf'), 'system', true); isProcessingStepRef.current = false; return;}
+            if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
+            if (targetPlayer.id === humanPlayer.id) { addPublicLog(t('errors.witchCannotPoisonSelf'), 'system'); isProcessingStepRef.current = false; return;}
             gameLogic.setPlayerToPoisonId(targetId);
             gameLogic.setWitchPotions(prev => ({ ...prev, poison: false }));
-            addLog(t('actions.usedPoison', { playerId: targetId }), 'human', true);
+            
+            // Log witch poison action - only visible to witch
+            addNightActionLog('witch_poison', {
+              playerId: humanPlayer.id,
+              targetId: targetId
+            }, humanPlayer.role);
+            
+            addPrivateLog(t('actions.usedPoison', { playerId: targetId }), [ROLES.WITCH], [humanPlayer.id], 'human');
           } else if (actionType === 'SKIP_POISON' || !witchPotions.poison) {
-            addLog(t('actions.skippedPoison', { reason: !witchPotions.poison ? ` (${t('gameInfo.poisonUsed')})` : '' }), 'human', true);
+            addPrivateLog(t('actions.skippedPoison', { reason: !witchPotions.poison ? ` (${t('gameInfo.poisonUsed')})` : '' }), [ROLES.WITCH], [humanPlayer.id], 'human');
             gameLogic.setPlayerToPoisonId(null);
           }
         }
@@ -160,28 +207,29 @@ const GameComponent = () => {
         if (deadOrVotedHunter) {
             if (actionType === 'HUNTER_SHOOT' && targetId !== null) {
                 const targetPlayer = players.find(p => p.id === targetId);
-                if (!targetPlayer || !targetPlayer.isAlive) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; }
-                if (targetPlayer.id === deadOrVotedHunter.id) { addLog(t('errors.hunterCannotShootSelf'), 'system', true); isProcessingStepRef.current = false; return; }
+                if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
+                if (targetPlayer.id === deadOrVotedHunter.id) { addPublicLog(t('errors.hunterCannotShootSelf'), 'system'); isProcessingStepRef.current = false; return; }
                 let updatedPlayersState = players.map(p => p.id === targetId ? { ...p, isAlive: false, revealedRole: p.role } : p);
                 setPlayers(updatedPlayersState); 
-                addLog(t('actions.hunterShot', { playerId: targetId, role: tr(targetPlayer.role) }), 'human', true);
+                addPublicLog(t('actions.hunterShot', { playerId: targetId, role: tr(targetPlayer.role) }), 'human');
                 gameLogic.setHunterTargetId(targetId); 
                 if (!gameLogic.checkWinConditionWrapper(updatedPlayersState)) { isProcessingStepRef.current = false; return; }
             } else { 
-                addLog(t('actions.hunterNoShoot'), 'human', true);
+                addPublicLog(t('actions.hunterNoShoot'), 'human');
             }
         }
         nextPhaseToSet = GAME_PHASES.DISCUSSION; 
         break;
       case GAME_PHASES.VOTING:
         if (humanPlayer.isAlive) {
-            if (targetId === null || targetId === undefined) { addLog(t('errors.needVoteTarget'), 'system', true); isProcessingStepRef.current = false; return; }
+            if (targetId === null || targetId === undefined) { addPublicLog(t('errors.needVoteTarget'), 'system'); isProcessingStepRef.current = false; return; }
             const targetPlayer = players.find(p => p.id === targetId);
-            if (!targetPlayer || !targetPlayer.isAlive) { addLog(t('errors.invalidTarget'), 'system', true); isProcessingStepRef.current = false; return; }
-            if (targetPlayer.id === humanPlayer.id) { addLog(t('errors.cannotVoteSelf'), 'system', true); isProcessingStepRef.current = false; return; }
+            if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
+            if (targetPlayer.id === humanPlayer.id) { addPublicLog(t('errors.cannotVoteSelf'), 'system'); isProcessingStepRef.current = false; return; }
             
             gameLogic.setCurrentVotes(prev => ({ ...prev, [humanPlayer.id]: targetId })); 
-            addLog(t('actions.voted', { playerId: targetId }), 'human', true);
+            // Use the voting log manager instead of direct logging
+            logManager.addVotingLog(humanPlayer.id, targetId, null); // null for human voter
             
             // Ensure AI voting is triggered and awaited here, so the main useEffect can check completion.
             // The main useEffect will then handle the phase transition.
@@ -232,7 +280,7 @@ const GameComponent = () => {
           humanPlayer={humanPlayer} 
           onContinue={() => {
             setShowRoleModalState(false);
-            addLog(`${t('gameInfo.yourRole')}: ${tr(humanPlayer.role)}`, 'system', true);
+            addPrivateLog(`${t('gameInfo.yourRole')}: ${tr(humanPlayer.role)}`, [], [humanPlayer.id], 'system');
             setGamePhase(GAME_PHASES.NIGHT_START);
           }}
         />
@@ -244,6 +292,21 @@ const GameComponent = () => {
           humanPlayer={humanPlayer}
           witchPotions={witchPotions}
           seerLastCheck={seerLastCheck}
+        />
+
+        <TTSControls 
+          isEnabled={tts.isEnabled}
+          setIsEnabled={tts.setIsEnabled}
+          volume={tts.volume}
+          setVolume={tts.setVolume}
+          rate={tts.rate}
+          setRate={tts.setRate}
+          pitch={tts.pitch}
+          setPitch={tts.setPitch}
+          isSpeaking={tts.isSpeaking}
+          isAvailable={tts.isAvailable}
+          speak={tts.speak}
+          stop={tts.stop}
         />
 
         <ActionPanel 
@@ -264,6 +327,8 @@ const GameComponent = () => {
           onSpeechSubmission={handleSpeechSubmission}
           onNextSpeaker={gameLogic.handleNextSpeaker}
           onShowVoteResults={() => setGamePhase(GAME_PHASES.VOTE_RESULTS)}
+          isTTSSpeaking={tts.isSpeaking}
+          ttsEnabled={tts.isEnabled}
         />
 
         <GameLog gameLog={gameLog} />

@@ -18,7 +18,9 @@ const ActionPanel = ({
   onPlayerAction,
   onSpeechSubmission,
   onNextSpeaker,
-  onShowVoteResults
+  onShowVoteResults,
+  isTTSSpeaking = false,
+  ttsEnabled = false
 }) => {
   const { t } = useLanguage();
   
@@ -156,6 +158,21 @@ const ActionPanel = ({
               <span className="text-2xl mr-2">🤖</span>
               <span className="text-gray-300 font-semibold">{t('actionPanel.aiSpeaking')}</span>
             </div>
+            
+            {/* TTS Status Indicator */}
+            {ttsEnabled && isTTSSpeaking && (
+              <div className="mb-3 p-2 bg-purple-900/30 rounded-lg border border-purple-400/30">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-75"></div>
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-150"></div>
+                  </div>
+                  <span className="text-purple-200 text-sm">{t('tts.aiSpeaking')}</span>
+                </div>
+              </div>
+            )}
+            
             <button 
               onClick={onNextSpeaker} 
               className="action-button w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 font-semibold shadow-lg"

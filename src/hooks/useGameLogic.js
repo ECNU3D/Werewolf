@@ -3,9 +3,10 @@ import { ROLES, GAME_PHASES } from '../constants/gameConstants';
 import { initializePlayers, checkWinCondition } from '../utils/gameUtils';
 import { getAIDecision } from '../utils/aiUtils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { logManager, LOG_CATEGORIES, LOG_VISIBILITY } from '../utils/logManager';
 
 export const useGameLogic = () => {
-  const { t, tr } = useLanguage();
+  const { t, tr, currentLanguage } = useLanguage();
   
   // 1. useState hooks
   const [players, setPlayers] = useState([]);
@@ -28,14 +29,48 @@ export const useGameLogic = () => {
 
   // 2. useCallback-wrapped functions & other functions
 
-  const addLog = useCallback((message, type = 'system', uiVisible = true) => {
-    console.log(`[LOG][${type}] ${message}`); 
-    if (uiVisible) {
-        setGameLog(prevLog => [...prevLog, { text: message, type, timestamp: new Date().toLocaleTimeString() }]);
+  // Updated addLog to use the new log manager
+  const addLog = useCallback((message, type = 'system', category = LOG_CATEGORIES.GAME_FLOW, visibility = LOG_VISIBILITY.PUBLIC, visibleToRoles = [], visibleToPlayers = []) => {
+    logManager.addLog({
+      message,
+      type,
+      category,
+      visibility,
+      visibleToRoles,
+      visibleToPlayers
+    });
+    
+    // Update the gameLog state for UI display - but only for the human player
+    const humanPlayer = players.find(p => p.isHuman);
+    if (humanPlayer) {
+      const logsForHuman = logManager.getUILogsForPlayer(humanPlayer.id, humanPlayer.role, humanPlayer.id);
+      setGameLog(logsForHuman);
     }
-  }, []);
+  }, [players]);
 
-  const getAIDecisionWrapper = useCallback(async (aiPlayer, promptPurpose, currentHistory_param) => {
+  // Helper methods for different log types
+  const addPublicLog = useCallback((message, type = 'system', category = LOG_CATEGORIES.GAME_FLOW) => {
+    addLog(message, type, category, LOG_VISIBILITY.PUBLIC);
+  }, [addLog]);
+
+  const addPrivateLog = useCallback((message, visibleToRoles = [], visibleToPlayers = [], type = 'system', category = LOG_CATEGORIES.ROLE_INFO) => {
+    addLog(message, type, category, LOG_VISIBILITY.PRIVATE, visibleToRoles, visibleToPlayers);
+  }, [addLog]);
+
+  const addNightActionLog = useCallback((actionType, details, playerRole) => {
+    logManager.addNightActionLog(actionType, details, playerRole);
+    // Update UI logs
+    const humanPlayer = players.find(p => p.isHuman);
+    if (humanPlayer) {
+      const logsForHuman = logManager.getUILogsForPlayer(humanPlayer.id, humanPlayer.role, humanPlayer.id);
+      setGameLog(logsForHuman);
+    }
+  }, [players]);
+
+  const getAIDecisionWrapper = useCallback(async (aiPlayer, promptPurpose) => {
+    // Get role-specific logs for AI decision making - this includes ALL historical information
+    const aiLogs = logManager.getAILogsForRole(aiPlayer.role);
+    
     const gameState = {
       players,
       seerLastCheck,
@@ -43,71 +78,91 @@ export const useGameLogic = () => {
       werewolfTargetId,
       witchPotions,
       humanPlayerId,
-      addLog
+      addLog: addPublicLog // Use public log for AI errors
     };
-    return await getAIDecision(aiPlayer, promptPurpose, currentHistory_param, gameState);
-  }, [players, seerLastCheck, guardLastProtectedId, werewolfTargetId, witchPotions, humanPlayerId, addLog]);
+    return await getAIDecision(aiPlayer, promptPurpose, aiLogs, gameState, currentLanguage);
+  }, [players, seerLastCheck, guardLastProtectedId, werewolfTargetId, witchPotions, humanPlayerId, addPublicLog, currentLanguage]);
 
   const checkWinConditionWrapper = useCallback((currentPlayersToCheck) => {
     const result = checkWinCondition(currentPlayersToCheck);
     if (result.gameOver && !winner) {
       if (result.winner === 'DRAW') {
-        addLog(t('gameResults.allDead'), 'system', true);
+        addPublicLog(t('gameResults.allDead'), 'system', LOG_CATEGORIES.GAME_FLOW);
       } else if (result.winner === 'VILLAGERS') {
-        addLog(t('gameResults.villagersWin'), 'system', true);
+        addPublicLog(t('gameResults.villagersWin'), 'system', LOG_CATEGORIES.GAME_FLOW);
       } else if (result.winner === 'WEREWOLVES') {
-        addLog(t('gameResults.werewolvesWin'), 'system', true);
+        addPublicLog(t('gameResults.werewolvesWin'), 'system', LOG_CATEGORIES.GAME_FLOW);
       }
       setWinner(result.winner);
       setGamePhase(GAME_PHASES.GAME_OVER);
       return false;
     }
     return true;
-  }, [addLog, winner, t]);
+  }, [addPublicLog, winner, t]);
 
   const resolveNightActions = useCallback(() => {
     console.debug("[RESOLVE_NIGHT_ACTIONS] Starting night resolution.");
     let deathsThisNightInfo = []; 
-    let messagesForUILog = []; 
     let updatedPlayers = [...players]; 
     const wolfTargetPlayer = updatedPlayers.find(p => p.id === werewolfTargetId);
 
+    // Handle werewolf attack
     if (wolfTargetPlayer && wolfTargetPlayer.isAlive) {
       if (wolfTargetPlayer.isProtected) {
-        messagesForUILog.push(t('nightActions.guardProtected', { playerId: wolfTargetPlayer.id }));
+        // Log protection success - this should be visible to guard privately
+        addPrivateLog(
+          t('nightActions.guardProtected', { playerId: wolfTargetPlayer.id }),
+          [ROLES.GUARD],
+          [],
+          'system',
+          LOG_CATEGORIES.NIGHT_ACTIONS
+        );
+        // Public log - vague message
+        addPublicLog(t('nightActions.werewolfMissed'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
       } else if (wolfTargetPlayer.isHealedByWitch) {
-        messagesForUILog.push(t('nightActions.witchSaved', { playerId: wolfTargetPlayer.id }));
+        // Log witch save - this should be visible to witch privately
+        addPrivateLog(
+          t('nightActions.witchSaved', { playerId: wolfTargetPlayer.id }),
+          [ROLES.WITCH],
+          [],
+          'system',
+          LOG_CATEGORIES.NIGHT_ACTIONS
+        );
+        // Public log - vague message
+        addPublicLog(t('nightActions.werewolfMissed'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
       } else {
-        messagesForUILog.push(t('nightActions.werewolfKilled', { playerId: wolfTargetPlayer.id })); 
+        // Player actually dies - this is public info but without revealing the exact cause
         deathsThisNightInfo.push({ id: wolfTargetPlayer.id, role: wolfTargetPlayer.role, reason: t('nightActions.killedByWerewolf') });
       }
     } else if (werewolfTargetId !== null) {
-       messagesForUILog.push(t('nightActions.werewolfMissed'));
+       // Target was already dead or invalid
+       addPublicLog(t('nightActions.werewolfMissed'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
     } else {
-       messagesForUILog.push(t('nightActions.peacefulNight'));
+       // Peaceful night - no werewolf target
+       addPublicLog(t('nightActions.peacefulNight'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
     }
 
+    // Handle witch poison
     const poisonedPlayer = updatedPlayers.find(p => p.id === playerToPoisonId);
     if (poisonedPlayer && poisonedPlayer.isAlive) {
       const alreadyMarkedForDeathByWolf = deathsThisNightInfo.some(d => d.id === poisonedPlayer.id);
       if (!alreadyMarkedForDeathByWolf) {
-         messagesForUILog.push(t('nightActions.witchPoisoned', { playerId: poisonedPlayer.id })); 
+         // Player dies from poison only
          deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: t('nightActions.poisonedByWitch') });
       } else {
+         // Player was targeted by both wolf and witch - still dies once
          deathsThisNightInfo = deathsThisNightInfo.filter(d => d.id !== poisonedPlayer.id); 
-         messagesForUILog.push(t('nightActions.witchPoisonedMultiple', { playerId: poisonedPlayer.id }));
          deathsThisNightInfo.push({ id: poisonedPlayer.id, role: poisonedPlayer.role, reason: t('nightActions.poisonedByWitch') });
       }
     }
     
+    // Process actual deaths
     let actualDeadIdsThisNight = [];
     if (deathsThisNightInfo.length === 0) {
-      if (werewolfTargetId === null && playerToPoisonId === null && messagesForUILog.length === 0) { 
-        messagesForUILog.push(t('nightActions.noneDeadPeaceful'));
-      } else if (messagesForUILog.length === 0 && (werewolfTargetId !== null || playerToPoisonId !== null)) {
-        if (werewolfTargetId === null && playerToPoisonId === null) { 
-             messagesForUILog.push(t('nightActions.noneDeadAfterActions')); 
-        }
+      if (werewolfTargetId === null && playerToPoisonId === null) { 
+        addPublicLog(t('nightActions.noneDeadPeaceful'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
+      } else {
+        addPublicLog(t('nightActions.noneDeadAfterActions'), 'system', LOG_CATEGORIES.NIGHT_ACTIONS);
       }
     } else {
         deathsThisNightInfo.forEach(death => {
@@ -118,8 +173,14 @@ export const useGameLogic = () => {
                 actualDeadIdsThisNight.push(death.id);
             }
         });
+        
+        // Add a general death announcement without revealing specific causes
+        const deathMessage = actualDeadIdsThisNight.length === 1 
+          ? t('nightActions.werewolfKilled', { playerId: actualDeadIdsThisNight[0] })
+          : `昨晚，${actualDeadIdsThisNight.map(id => `玩家 ${id}`).join('、')} 死亡了。`;
+        
+        logManager.addDeathAnnouncement(actualDeadIdsThisNight, deathMessage);
     }
-    messagesForUILog.forEach(msg => addLog(msg, 'system', true)); 
 
     setPlayers(updatedPlayers);
     setPendingDeathPlayerIds(actualDeadIdsThisNight); 
@@ -129,7 +190,7 @@ export const useGameLogic = () => {
       setGamePhase(GAME_PHASES.DAY_START);
     }
     console.debug("[RESOLVE_NIGHT_ACTIONS] Finished night resolution.");
-  }, [players, werewolfTargetId, playerToPoisonId, addLog, checkWinConditionWrapper, t]);
+  }, [players, werewolfTargetId, playerToPoisonId, addPublicLog, addPrivateLog, checkWinConditionWrapper, t]);
 
   const resolveVoting = useCallback(() => {
     console.debug("[RESOLVE_VOTING] Starting vote resolution.");
@@ -173,7 +234,7 @@ export const useGameLogic = () => {
     } else {
       voteMessage = t('voting.noElimination');
     }
-    addLog(voteMessage, 'system', true);
+    addPublicLog(voteMessage, 'system', LOG_CATEGORIES.VOTING);
 
     setPlayers(updatedPlayers);
     const gameStillOn = checkWinConditionWrapper(updatedPlayers);
@@ -189,7 +250,7 @@ export const useGameLogic = () => {
     }
     setCurrentVotes({});
     console.debug("[RESOLVE_VOTING] Finished vote resolution.");
-  }, [players, currentVotes, addLog, checkWinConditionWrapper, t, tr]);
+  }, [players, currentVotes, addPublicLog, checkWinConditionWrapper, t, tr]);
   
   const handleNextSpeaker = useCallback(() => {
     if (winner) return;
@@ -219,7 +280,7 @@ export const useGameLogic = () => {
         console.debug(`[HANDLE_NEXT_SPEAKER] Moving to next alive player in list: Player ID ${nextSpeakerToSetId}`);
     } else { 
       console.debug("[HANDLE_NEXT_SPEAKER] All alive players have spoken, moving to VOTING phase.");
-      addLog(t('gamePhases.discussionDone'), 'system', true); 
+      addPublicLog(t('gamePhases.discussionDone'), 'system', LOG_CATEGORIES.GAME_FLOW); 
       setGamePhase(GAME_PHASES.VOTING); 
       return;
     }
@@ -229,16 +290,21 @@ export const useGameLogic = () => {
 
     const nextSpeakerDetails = players.find(p => p.id === nextSpeakerToSetId);
     if (nextSpeakerDetails) {
-        addLog(t('speaking.nextSpeaker', { playerId: nextSpeakerDetails.id }), 'system', true);
+        addPublicLog(t('speaking.nextSpeaker', { playerId: nextSpeakerDetails.id }), 'system', LOG_CATEGORIES.ACTIONS);
     } else {
         console.error(`[HANDLE_NEXT_SPEAKER_ERROR] Could not find next speaker details for ID: ${nextSpeakerToSetId}`);
     }
-  }, [currentPlayerSpeakingId, players, winner, addLog, t]);
+  }, [currentPlayerSpeakingId, players, winner, addPublicLog, t]);
 
   const initializeGameWrapper = useCallback((gameConfig = { isRandomRole: true, selectedRole: null }) => {
     console.log('[GAME_INIT] Received config:', gameConfig);
-    addLog(t('gameInit.initializing'), 'system', true);
-    const { newPlayers, humanId } = initializePlayers(gameConfig);
+    
+    // Clear previous logs
+    logManager.clearLogs();
+    
+    addPublicLog(t('gameInit.initializing'), 'system', LOG_CATEGORIES.GAME_FLOW);
+    const configWithLanguage = { ...gameConfig, language: currentLanguage };
+    const { newPlayers, humanId } = initializePlayers(configWithLanguage);
     setHumanPlayerId(humanId);
     setPlayers(newPlayers);
     
@@ -246,9 +312,9 @@ export const useGameLogic = () => {
     const humanPlayer = newPlayers.find(p => p.isHuman);
     console.log('[GAME_INIT] Human player assigned role:', humanPlayer.role);
     if (gameConfig.isRandomRole) {
-      addLog(t('gameInit.randomRoleAssigned'), 'system', true);
+      addPublicLog(t('gameInit.randomRoleAssigned'), 'system', LOG_CATEGORIES.GAME_FLOW);
     } else {
-      addLog(t('gameInit.selectedRoleAssigned', { role: tr(humanPlayer.role) }), 'system', true);
+      addPublicLog(t('gameInit.selectedRoleAssigned', { role: tr(humanPlayer.role) }), 'system', LOG_CATEGORIES.GAME_FLOW);
     }
     
     setShowRoleModalState(true); 
@@ -264,9 +330,9 @@ export const useGameLogic = () => {
     setCurrentVotes({});
     setWinner(null);
     setGamePhase(GAME_PHASES.SHOW_ROLE_MODAL); 
-  }, [addLog, t, tr]);
+  }, [addPublicLog, t, tr, currentLanguage]);
 
-  const handleAIVoting = async () => {
+  const handleAIVoting = useCallback(async () => {
     console.debug("[HANDLE_AI_VOTING] Starting AI voting process.");
     const aliveAIPlayers = players.filter(p => p.isAlive && !p.isHuman);
     let newVotesCollectedThisTurn = {}; // Collect new votes here
@@ -275,22 +341,22 @@ export const useGameLogic = () => {
     for (const aiPlayer of aliveAIPlayers) {
         // Only process AI if they haven't voted yet
         if (!currentVotes.hasOwnProperty(aiPlayer.id)) {
-            const aiVoteTargetIdStr = await getAIDecisionWrapper(aiPlayer, 'VOTE_PLAYER', gameLog);
+            const aiVoteTargetIdStr = await getAIDecisionWrapper(aiPlayer, 'VOTE_PLAYER');
             const aiVoteTargetId = parseInt(aiVoteTargetIdStr, 10);
             if (!isNaN(aiVoteTargetId) && players.find(p => p.id === aiVoteTargetId)?.isAlive && aiVoteTargetId !== aiPlayer.id) {
                 newVotesCollectedThisTurn[aiPlayer.id] = aiVoteTargetId;
-                addLog(t('aiVoting.playerVoted', { aiPlayerId: aiPlayer.id, targetId: aiVoteTargetId }), 'ai', true);
+                logManager.addVotingLog(aiPlayer.id, aiVoteTargetId, aiPlayer.role);
                 anyNewVotes = true;
             } else {
                 const possibleTargets = players.filter(p => p.isAlive && p.id !== aiPlayer.id);
                 if (possibleTargets.length > 0) {
                     const randomTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)].id;
                     newVotesCollectedThisTurn[aiPlayer.id] = randomTarget;
-                    addLog(t('aiVoting.playerVotedRandom', { aiPlayerId: aiPlayer.id, targetId: randomTarget }), 'ai', true);
+                    addPublicLog(t('aiVoting.playerVotedRandom', { aiPlayerId: aiPlayer.id, targetId: randomTarget }), 'ai', LOG_CATEGORIES.VOTING);
                     anyNewVotes = true;
                 } else {
                     newVotesCollectedThisTurn[aiPlayer.id] = null; // Explicitly mark as abstained if no valid target
-                    addLog(t('aiVoting.playerAbstained', { aiPlayerId: aiPlayer.id }), 'ai', true);
+                    addPublicLog(t('aiVoting.playerAbstained', { aiPlayerId: aiPlayer.id }), 'ai', LOG_CATEGORIES.VOTING);
                     anyNewVotes = true;
                 }
             }
@@ -299,10 +365,17 @@ export const useGameLogic = () => {
     
     if (anyNewVotes) {
         setCurrentVotes(prevVotes => ({ ...prevVotes, ...newVotesCollectedThisTurn }));
+        
+        // Update UI logs after new votes
+        const humanPlayer = players.find(p => p.isHuman);
+        if (humanPlayer) {
+          const logsForHuman = logManager.getUILogsForPlayer(humanPlayer.id, humanPlayer.role, humanPlayer.id);
+          setGameLog(logsForHuman);
+        }
     }
     console.debug("[HANDLE_AI_VOTING] Finished AI voting process. Current votes:", currentVotes, "New votes collected:", newVotesCollectedThisTurn);
     // The decision to move to VOTE_RESULTS will be handled by the main useEffect
-  };
+  }, [players, currentVotes, getAIDecisionWrapper, addPublicLog, t]);
 
   return {
     // State
@@ -340,6 +413,9 @@ export const useGameLogic = () => {
     
     // Functions
     addLog,
+    addPublicLog,
+    addPrivateLog,
+    addNightActionLog,
     getAIDecisionWrapper,
     checkWinConditionWrapper,
     resolveNightActions,

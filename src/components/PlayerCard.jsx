@@ -124,7 +124,7 @@ const PlayerCard = ({
             <div className="flex items-center">
               <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
               <span className="text-red-400 font-medium">
-                {t('playerCard.eliminated')} ({player.revealedRole || t('playerCard.unknownRole')})
+                {t('playerCard.eliminated')}
               </span>
             </div>
           )}

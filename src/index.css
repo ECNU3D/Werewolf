@@ -336,6 +336,46 @@ code {
   background: linear-gradient(180deg, #A21D48 0%, #3D2B7A 100%);
 }
 
+/* TTS Controls Styling */
+.slider-thumb {
+  background: linear-gradient(135deg, #9333ea, #3b82f6);
+  cursor: pointer;
+}
+
+.slider-thumb::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #9333ea, #3b82f6);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider-thumb::-webkit-slider-thumb:hover {
+  background: linear-gradient(135deg, #a855f7, #60a5fa);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+}
+
+.slider-thumb::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #9333ea, #3b82f6);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider-thumb::-moz-range-thumb:hover {
+  background: linear-gradient(135deg, #a855f7, #60a5fa);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .role-icon {

@@ -1,4 +1,5 @@
 import { ROLES } from '../constants/gameConstants';
+import { LANGUAGES, translations } from '../constants/languages';
 
 // Check if we're in production mode (served by nginx proxy)
 const isProduction = process.env.NODE_ENV === 'production';
@@ -54,7 +55,7 @@ const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
       options: {
         temperature: 0.7,
         top_p: 0.9,
-        stop: ["\n", "Player", "---"]
+        // stop: ["\n", "Player", "---"]
       }
     };
     headers = { 'Content-Type': 'application/json' };
@@ -68,7 +69,7 @@ const callOllamaAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
       options: {
         temperature: 0.7,
         top_p: 0.9,
-        stop: ["\n", "Player", "---"]
+        // stop: ["\n", "Player", "---"]
       }
     };
     headers = { 'Content-Type': 'application/json' };
@@ -227,8 +228,8 @@ const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
       model: config.model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 150,
-      stop: ["\n", "Player", "---"]
+      max_tokens: 500,
+      // stop: ["\n", "Player", "---"]
     };
     headers = { 'Content-Type': 'application/json' };
   } else {
@@ -244,8 +245,8 @@ const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
       model: config.model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 150,
-      stop: ["\n", "Player", "---"]
+      max_tokens: 500,
+      // stop: ["\n", "Player", "---"]
     };
     headers = { 
       'Content-Type': 'application/json',
@@ -316,7 +317,7 @@ const callOpenAIAPI = async (prompt, config, aiPlayer, promptPurpose, addLog) =>
   }
 };
 
-export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_param, gameState) => {
+export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_param, gameState, currentLanguage = LANGUAGES.CHINESE) => {
   const { 
     players, 
     seerLastCheck, 
@@ -327,77 +328,107 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
     addLog 
   } = gameState;
 
+  // Get translations for current language
+  const t = translations[currentLanguage];
+  const tr = (role) => t?.roles?.[role] || role;
+
   // Get AI configuration
   const config = getAIConfig();
   console.debug(`[AI_CONFIG] Using provider: ${config.provider}, model: ${config.model}`);
 
   console.debug(`[AI_DECISION_START] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose} | Provider: ${config.provider}`);
-  let basePrompt = `${aiPlayer.aiSystemPrompt}\n`;
-  basePrompt += `--- Current Game History and State (newest at bottom) ---\n${currentHistory_param.map(log => `${log.timestamp} [${log.type === 'human' ? `Player ${humanPlayerId}` : (log.type === 'ai' ? `Player ${aiPlayer.id}` : 'System')}] ${log.text}`).slice(-20).join('\n')}\n---\n`;
+  
+  // Add explicit language instruction
+  const languageInstruction = currentLanguage === LANGUAGES.CHINESE 
+    ? "重要：请用中文回答。请不要使用英文回答。"
+    : "IMPORTANT: Please respond in English only. Do not use Chinese characters.";
+  
+  let basePrompt = `${languageInstruction}\n\n${aiPlayer.aiSystemPrompt}\n`;
+  
+  // Include ALL game history visible to this AI role, not just the last 20 entries
+  basePrompt += `${t.aiPrompts.gameHistory}\n${currentHistory_param.map(log => {
+    const speaker = log.type === 'human' ? t.aiPrompts.speakers.player.replace('{{playerId}}', humanPlayerId) : 
+                   (log.type === 'ai' ? t.aiPrompts.speakers.player.replace('{{playerId}}', aiPlayer.id) : 
+                   t.aiPrompts.speakers.system);
+    return t.aiPrompts.historyEntry.replace('{{timestamp}}', log.timestamp).replace('{{speaker}}', speaker).replace('{{text}}', log.text);
+  }).join('\n')}\n---\n`;
   
   const alivePlayerObjects = players.filter(p => p.isAlive);
-  let alivePlayerInfo = "Current alive players:\n";
+  let alivePlayerInfo = `${t.aiPrompts.playerInfo.currentAlivePlayers}\n`;
   alivePlayerObjects.forEach(p => {
-      let roleDisplay = 'Unknown Role';
+      let roleDisplay = t.aiPrompts.playerInfo.unknownRole;
       if (p.id === aiPlayer.id) {
-          roleDisplay = p.role; 
+          roleDisplay = tr(p.role); 
       } else if (aiPlayer.role === ROLES.WEREWOLF && p.role === ROLES.WEREWOLF) {
-          roleDisplay = `${ROLES.WEREWOLF} (your teammate)`; 
+          roleDisplay = t.aiPrompts.playerInfo.yourTeammateWerewolf.replace('{{role}}', tr(ROLES.WEREWOLF)); 
       } else if (aiPlayer.role === ROLES.SEER && seerLastCheck && seerLastCheck.targetId === p.id) {
-          roleDisplay = seerLastCheck.targetRole; 
+          roleDisplay = tr(seerLastCheck.targetRole); 
       } else if (p.revealedRole) {
-          roleDisplay = p.revealedRole;
+          roleDisplay = tr(p.revealedRole);
       }
-      alivePlayerInfo += `  - Player ${p.id} (${p.isHuman ? "Human" : "AI"}, Status: Alive, Role to you: ${roleDisplay})\n`;
+      alivePlayerInfo += t.aiPrompts.playerInfo.playerEntry
+        .replace('{{playerId}}', p.id)
+        .replace('{{playerType}}', p.isHuman ? t.aiPrompts.playerInfo.human : t.aiPrompts.playerInfo.ai)
+        .replace('{{roleDisplay}}', roleDisplay) + '\n';
   });
   basePrompt += alivePlayerInfo;
   
   if (aiPlayer.role === ROLES.WEREWOLF) {
       const otherWolves = players.filter(p => p.role === ROLES.WEREWOLF && p.id !== aiPlayer.id && p.isAlive);
       if (otherWolves.length > 0) {
-          basePrompt += `Your werewolf teammates are: ${otherWolves.map(w => `Player ${w.id}`).join(', ')}.\n`;
+          basePrompt += t.aiPrompts.playerInfo.werewolfTeammates.replace('{{teammates}}', otherWolves.map(w => `${t.common.player} ${w.id}`).join(', ')) + '\n';
       } else {
-          basePrompt += `You are the only werewolf left.\n`;
+          basePrompt += `${t.aiPrompts.playerInfo.onlyWerewolfLeft}\n`;
       }
   }
-  basePrompt += `Your ID is ${aiPlayer.id}, your role is ${aiPlayer.role}.\n`;
+  basePrompt += t.aiPrompts.playerInfo.yourInfo.replace('{{playerId}}', aiPlayer.id).replace('{{role}}', tr(aiPlayer.role)) + '\n';
 
   let specificQuestion = "";
-  let expectedFormat = "Please reply with your choice directly.";
+  let expectedFormat = "";
 
   switch (promptPurpose) {
     case 'WEREWOLF_TARGET':
-      specificQuestion = `Werewolf task: It's night and your turn to act. Choose a player to attack with your werewolf teammates (if any). Primary targets are villager faction players. You can attack any player, but in special situations (like confusing villagers), you may consider attacking werewolf teammates. Please only reply with the target player's ID number.`;
-      expectedFormat = "Please only reply with the target player's ID number.";
+      specificQuestion = t.aiPrompts.tasks.werewolfTarget.question;
+      expectedFormat = t.aiPrompts.tasks.werewolfTarget.format;
       break;
     case 'GUARD_PROTECT':
-      specificQuestion = `Guard task: It's night and your turn to act. Choose a player to protect from werewolf attacks. You cannot protect the same person for two consecutive nights. Last night you protected ${guardLastProtectedId === null ? 'no one' : `Player ${guardLastProtectedId}`}. Please only reply with the target player's ID number.`;
-      expectedFormat = "Please only reply with the target player's ID number.";
+      const lastProtected = guardLastProtectedId === null ? t.aiPrompts.tasks.guardProtect.noOne : `${t.common.player} ${guardLastProtectedId}`;
+      specificQuestion = t.aiPrompts.tasks.guardProtect.question.replace('{{lastProtected}}', lastProtected);
+      expectedFormat = t.aiPrompts.tasks.guardProtect.format;
       break;
     case 'SEER_CHECK':
-      specificQuestion = `Seer task: It's night and your turn to act. Choose a player to check their identity (villager or werewolf). Please only reply with the target player's ID number.`;
-      expectedFormat = "Please only reply with the target player's ID number.";
+      specificQuestion = t.aiPrompts.tasks.seerCheck.question;
+      expectedFormat = t.aiPrompts.tasks.seerCheck.format;
       break;
     case 'WITCH_SAVE_CHOICE': 
       const wolfVictim = players.find(p => p.id === werewolfTargetId);
-      specificQuestion = `Witch task: Werewolves attacked Player ${werewolfTargetId} (${wolfVictim?.role || 'Unknown Role'}). You have an antidote, ${witchPotions.antidote ? 'not used yet' : 'already used'}. Do you want to use the antidote to save Player ${werewolfTargetId}? Please only reply 'yes' (use) or 'no' (don't use).`;
-      expectedFormat = "Please only reply 'yes' or 'no'.";
+      const antidoteStatus = witchPotions.antidote ? t.aiPrompts.tasks.witchSaveChoice.antidoteNotUsed : t.aiPrompts.tasks.witchSaveChoice.antidoteUsed;
+      specificQuestion = t.aiPrompts.tasks.witchSaveChoice.question
+        .replace('{{targetId}}', werewolfTargetId)
+        .replace('{{targetRole}}', tr(wolfVictim?.role) || t.aiPrompts.playerInfo.unknownRole)
+        .replace('{{antidoteStatus}}', antidoteStatus);
+      expectedFormat = t.aiPrompts.tasks.witchSaveChoice.format;
       break;
     case 'WITCH_POISON_CHOICE': 
-      specificQuestion = `Witch task: You have a poison potion, ${witchPotions.poison ? 'not used yet' : 'already used'}. Do you want to use the poison to kill a player tonight? If yes, reply with the target player's ID number; if you don't want to use poison, reply 'no'.`;
-      expectedFormat = "If using poison, reply with target player's ID number; if not using, reply 'no'.";
+      const poisonStatus = witchPotions.poison ? t.aiPrompts.tasks.witchPoisonChoice.poisonNotUsed : t.aiPrompts.tasks.witchPoisonChoice.poisonUsed;
+      specificQuestion = t.aiPrompts.tasks.witchPoisonChoice.question.replace('{{poisonStatus}}', poisonStatus);
+      expectedFormat = t.aiPrompts.tasks.witchPoisonChoice.format;
       break;
     case 'HUNTER_SHOOT':
-      specificQuestion = `Hunter task: You (Player ${aiPlayer.id}) just died! Now you can activate your ability to shoot and take one alive player with you. Choose a player to eliminate with you, or choose not to shoot. If shooting, reply only with the target player's ID number; if choosing not to shoot, reply 'no'.`;
-      expectedFormat = "If shooting, reply with target player's ID number; if not shooting, reply 'no'.";
+      specificQuestion = t.aiPrompts.tasks.hunterShoot.question.replace('{{playerId}}', aiPlayer.id);
+      expectedFormat = t.aiPrompts.tasks.hunterShoot.format;
       break;
     case 'DISCUSSION_STATEMENT':
-      specificQuestion = `Discussion phase: It's your turn (Player ${aiPlayer.id} - ${aiPlayer.role}) to speak. Based on your known information (including your role, night action results, others' speeches and voting history), analyze and take a stance. Your speech should align with your role and faction goals. For example, if you're a werewolf, hide your identity and mislead villagers; if you're a seer, carefully provide information. Keep your speech brief, one or two sentences summarizing your core viewpoint or action intention.`;
-      expectedFormat = "Please directly reply with your speech content.";
+      specificQuestion = t.aiPrompts.tasks.discussionStatement.question
+        .replace('{{playerId}}', aiPlayer.id)
+        .replace('{{role}}', tr(aiPlayer.role));
+      expectedFormat = t.aiPrompts.tasks.discussionStatement.format;
       break;
     case 'VOTE_PLAYER':
-      specificQuestion = `Voting phase: It's your turn (Player ${aiPlayer.id} - ${aiPlayer.role}) to vote. Based on all information, including others' speeches, vote for the player you think is most likely a werewolf or most harmful to your faction. Please only reply with your vote target's player ID number.`;
-      expectedFormat = "Please only reply with the target player's ID number.";
+      specificQuestion = t.aiPrompts.tasks.votePlayer.question
+        .replace('{{playerId}}', aiPlayer.id)
+        .replace('{{role}}', tr(aiPlayer.role));
+      expectedFormat = t.aiPrompts.tasks.votePlayer.format;
       break;
     default:
       addLog(`AI ${aiPlayer.id} received unknown action type: ${promptPurpose}`, 'error', true);
@@ -405,7 +436,12 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
       return null;
   }
 
-  const fullPrompt = `${basePrompt}\n--- Your Task ---\n${specificQuestion}\n${expectedFormat}`;
+  // Add final language reminder before the task
+  const finalLanguageReminder = currentLanguage === LANGUAGES.CHINESE 
+    ? "\n重要提醒：请务必用中文回答，不要使用英文。"
+    : "\nIMPORTANT REMINDER: You must respond in English only. Do not use any Chinese characters.";
+
+  const fullPrompt = `${basePrompt}\n${t.aiPrompts.yourTask}\n${specificQuestion}\n${expectedFormat}${finalLanguageReminder}`;
   console.debug(`[AI_PROMPT_SENT] AI Player ${aiPlayer.id} (${aiPlayer.role}) | Task: ${promptPurpose} | Provider: ${config.provider}\nPrompt content:\n${fullPrompt}`);
   
   // Route to appropriate AI provider
@@ -439,12 +475,19 @@ export const getAIDecision = async (aiPlayer, promptPurpose, currentHistory_para
           if (numMatch) text = numMatch[0]; else return null; 
       }
   } else if (promptPurpose === 'WITCH_SAVE_CHOICE' || promptPurpose === 'HUNTER_SHOOT' || promptPurpose === 'WITCH_POISON_CHOICE') {
-      if (!/^(yes|no|\d+)$/i.test(text)) {
-           addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`, 'error', false); 
-           console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no or ID): "${text}"`);
-           if (text.toLowerCase().includes('yes')) text = 'yes';
-           else if (text.toLowerCase().includes('no')) text = 'no';
+      // Accept both English (yes/no) and Chinese (是/否) responses
+      if (!/^(yes|no|是|否|\d+)$/i.test(text)) {
+           addLog(`AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no/是/否 or ID): "${text}"`, 'error', false); 
+           console.warn(`[AI_FORMAT_WARN] AI ${aiPlayer.id} (${promptPurpose}) invalid response format (should be yes/no/是/否 or ID): "${text}"`);
+           // Try to extract meaning from the response
+           const lowerText = text.toLowerCase();
+           if (lowerText.includes('yes') || text.includes('是')) text = 'yes';
+           else if (lowerText.includes('no') || text.includes('否')) text = 'no';
            else { const numMatch = text.match(/\d+/); if (numMatch) text = numMatch[0]; else return null;}
+      } else {
+           // Normalize Chinese responses to English for consistency
+           if (text === '是') text = 'yes';
+           else if (text === '否') text = 'no';
       }
   }
   

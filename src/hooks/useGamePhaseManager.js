@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { ROLES, GAME_PHASES } from '../constants/gameConstants';
 import { useLanguage } from '../contexts/LanguageContext';
+import { LOG_CATEGORIES } from '../utils/logManager';
 
-export const useGamePhaseManager = (gameLogic) => {
+export const useGamePhaseManager = (gameLogic, tts) => {
   const { t, tr } = useLanguage();
   
   const {
@@ -28,6 +29,9 @@ export const useGamePhaseManager = (gameLogic) => {
     handleNextSpeaker,
     handleAIVoting,
     addLog,
+    addPublicLog,
+    addPrivateLog,
+    addNightActionLog,
     getAIDecisionWrapper,
     checkWinConditionWrapper,
     setGamePhase,
@@ -50,9 +54,8 @@ export const useGamePhaseManager = (gameLogic) => {
         }
         
         isProcessingStepRef.current = true;
-        const currentPlayers_local = players; 
+                const currentPlayers_local = players;
         const currentHumanPlayer_local = currentPlayers_local.find(p => p.isHuman);
-        const currentLog_local = gameLog;
 
         try {
             switch (gamePhase) { 
@@ -63,7 +66,7 @@ export const useGamePhaseManager = (gameLogic) => {
                     break;
                 case GAME_PHASES.NIGHT_START:
                     if (!showRoleModalState) { 
-                        addLog(t('gamePhases.nightStart'), 'system', true);
+                        addPublicLog(t('gamePhases.nightStart'), 'system', LOG_CATEGORIES.GAME_FLOW);
                         setWerewolfTargetId(null); 
                         setPlayerToPoisonId(null); 
                         setPlayers(prev => prev.map(p => ({ ...p, isProtected: false, isTargetedByWolf: false, isHealedByWitch: false })));
@@ -73,19 +76,25 @@ export const useGamePhaseManager = (gameLogic) => {
                 
                 case GAME_PHASES.WEREWOLVES_ACT:
                     if (currentHumanPlayer_local?.role === ROLES.WEREWOLF && currentHumanPlayer_local.isAlive && werewolfTargetId === null) {
-                        addLog(t('gamePhases.waitingWerewolf'), 'system', true);
+                        addPrivateLog(t('gamePhases.waitingWerewolf'), [ROLES.WEREWOLF], [currentHumanPlayer_local.id], 'system', LOG_CATEGORIES.GAME_FLOW);
                     } else {
                         const aiWolves = currentPlayers_local.filter(p => p.role === ROLES.WEREWOLF && p.isAlive && !p.isHuman);
                         if (aiWolves.length > 0 && werewolfTargetId === null) {
                             const actingWolf = aiWolves[0];
-                            const targetStr = await getAIDecisionWrapper(actingWolf, 'WEREWOLF_TARGET', currentLog_local);
+                            const targetStr = await getAIDecisionWrapper(actingWolf, 'WEREWOLF_TARGET');
                             const target = parseInt(targetStr, 10);
                             if (!isNaN(target) && currentPlayers_local.find(p => p.id === target)?.isAlive) {
-                                setWerewolfTargetId(target); 
+                                setWerewolfTargetId(target);
+                                // Log AI werewolf action for werewolves only
+                                addNightActionLog('werewolf_kill', {
+                                    playerId: actingWolf.id,
+                                    targetId: target,
+                                    wasSuccessful: true
+                                }, actingWolf.role);
                             }
                         }
                         if (werewolfTargetId !== null || (aiWolves.length === 0 && !(currentHumanPlayer_local?.role === ROLES.WEREWOLF && currentHumanPlayer_local?.isAlive))) {
-                            addLog(t('gamePhases.werewolfDone'), 'system', true);
+                            // Don't log phase transitions that reveal sensitive information
                             setGamePhase(GAME_PHASES.GUARD_ACTS);
                         }
                     }
@@ -96,11 +105,17 @@ export const useGamePhaseManager = (gameLogic) => {
                     } else {
                         const guard = currentPlayers_local.find(p => p.role === ROLES.GUARD && p.isAlive && !p.isHuman);
                         if (guard) {
-                            const targetStr = await getAIDecisionWrapper(guard, 'GUARD_PROTECT', currentLog_local);
+                            const targetStr = await getAIDecisionWrapper(guard, 'GUARD_PROTECT');
                             const target = parseInt(targetStr, 10);
                             if (!isNaN(target) && target !== guardLastProtectedId && currentPlayers_local.find(p => p.id === target)?.isAlive) {
                                 setPlayers(prev => prev.map(p => p.id === target ? { ...p, isProtected: true } : p));
                                 setGuardLastProtectedId(target);
+                                
+                                // Log AI guard action - only visible to guard
+                                addNightActionLog('guard_protect', {
+                                    playerId: guard.id,
+                                    targetId: target
+                                }, guard.role);
                             }
                         }
                         addLog(t('gamePhases.guardDone'), 'system', true);
@@ -113,11 +128,18 @@ export const useGamePhaseManager = (gameLogic) => {
                     } else {
                         const seerAI = currentPlayers_local.find(p => p.role === ROLES.SEER && p.isAlive && !p.isHuman);
                         if (seerAI) {
-                            const targetStr = await getAIDecisionWrapper(seerAI, 'SEER_CHECK', currentLog_local);
+                            const targetStr = await getAIDecisionWrapper(seerAI, 'SEER_CHECK');
                             const target = parseInt(targetStr, 10);
                             const targetPlayer = currentPlayers_local.find(p => p.id === target);
                             if (targetPlayer?.isAlive) {
                                 setSeerLastCheck({ targetId: target, targetRole: targetPlayer.role });
+                                
+                                // Log AI seer action - only visible to seer, including the result
+                                addNightActionLog('seer_check', {
+                                    playerId: seerAI.id,
+                                    targetId: target,
+                                    reason: tr(targetPlayer.role)
+                                }, seerAI.role);
                             }
                         }
                         addLog(t('gamePhases.seerDone'), 'system', true);
@@ -138,10 +160,16 @@ export const useGamePhaseManager = (gameLogic) => {
                         if (witchAI) {
                             const wolfVictimPlayer = currentPlayers_local.find(p => p.id === werewolfTargetId);
                             if (witchPotions.antidote && wolfVictimPlayer && wolfVictimPlayer.isAlive) {
-                                const choice = await getAIDecisionWrapper(witchAI, 'WITCH_SAVE_CHOICE', currentLog_local);
+                                const choice = await getAIDecisionWrapper(witchAI, 'WITCH_SAVE_CHOICE');
                                 if (choice === 'yes') {
                                     setPlayers(prev => prev.map(p => p.id === werewolfTargetId ? { ...p, isHealedByWitch: true } : p));
                                     setWitchPotions(prev => ({ ...prev, antidote: false }));
+                                    
+                                    // Log AI witch save action - only visible to witch
+                                    addNightActionLog('witch_save', {
+                                        playerId: witchAI.id,
+                                        targetId: werewolfTargetId
+                                    }, witchAI.role);
                                 }
                             }
                         }
@@ -156,12 +184,18 @@ export const useGamePhaseManager = (gameLogic) => {
                         const witchAI = currentPlayers_local.find(p => p.role === ROLES.WITCH && p.isAlive && !p.isHuman);
                         if (witchAI) {
                             if (witchPotions.poison) {
-                                const choiceStr = await getAIDecisionWrapper(witchAI, 'WITCH_POISON_CHOICE', currentLog_local);
+                                const choiceStr = await getAIDecisionWrapper(witchAI, 'WITCH_POISON_CHOICE');
                                 if (choiceStr !== 'no' && choiceStr !== null && !isNaN(parseInt(choiceStr))) {
                                     const targetToPoison = parseInt(choiceStr, 10);
                                     if (players.find(p => p.id === targetToPoison)?.isAlive && targetToPoison !== witchAI.id) {
                                         setPlayerToPoisonId(targetToPoison);
                                         setWitchPotions(prev => ({ ...prev, poison: false }));
+                                        
+                                        // Log AI witch poison action - only visible to witch
+                                        addNightActionLog('witch_poison', {
+                                            playerId: witchAI.id,
+                                            targetId: targetToPoison
+                                        }, witchAI.role);
                                     }
                                 }
                             }
@@ -203,7 +237,7 @@ export const useGamePhaseManager = (gameLogic) => {
                     } else { 
                         const deadAIHunter = currentPlayers_local.find(p => !p.isHuman && p.role === ROLES.HUNTER && !p.isAlive && (pendingDeathPlayerIds.includes(p.id) || hunterTargetId === p.id));
                         if (deadAIHunter) {
-                            const targetStr = await getAIDecisionWrapper(deadAIHunter, 'HUNTER_SHOOT', currentLog_local);
+                            const targetStr = await getAIDecisionWrapper(deadAIHunter, 'HUNTER_SHOOT');
                             const target = parseInt(targetStr, 10);
                             const targetPlayer = currentPlayers_local.find(p => p.id === target);
                             if (targetStr !== 'no' && !isNaN(target) && targetPlayer?.isAlive && targetPlayer.id !== deadAIHunter.id) {
@@ -226,9 +260,21 @@ export const useGamePhaseManager = (gameLogic) => {
                             // Logged by handleNextSpeaker or initial phase set
                         } else { 
                             console.debug(`[EXECUTE_CURRENT_STEP] AI Player ${speaker.id} turn to speak in DISCUSSION.`);
-                            const statement = await getAIDecisionWrapper(speaker, 'DISCUSSION_STATEMENT', currentLog_local);
+                            const statement = await getAIDecisionWrapper(speaker, 'DISCUSSION_STATEMENT');
                             if (gamePhase === GAME_PHASES.DISCUSSION && currentPlayerSpeakingId === speaker.id && !winner) { 
-                                addLog(t('gamePhases.playerSpeaks', { playerId: speaker.id, statement: statement || t('gamePhases.skipSpeech') }), 'ai', true);
+                                // Record the AI's speech in discussion category for complete history
+                                addPublicLog(t('gamePhases.playerSpeaks', { playerId: speaker.id, statement: statement || t('gamePhases.skipSpeech') }), 'ai', LOG_CATEGORIES.DISCUSSION);
+                                
+                                // Speak the AI's statement using text-to-speech and wait for completion
+                                if (tts && statement && tts.isEnabled) {
+                                    try {
+                                        await tts.speakAIStatement(speaker.id, statement, speaker.role);
+                                    } catch (error) {
+                                        console.debug('TTS error handled:', error);
+                                        // Continue game flow even if TTS fails
+                                    }
+                                }
+                                
                                 handleNextSpeaker(); 
                             } else {
                                  console.warn(`[AI_DISCUSSION_STALE_IN_EXECUTE] AI Player ID: ${speaker.id}. Phase/speaker changed.`);
@@ -286,15 +332,16 @@ export const useGamePhaseManager = (gameLogic) => {
     players.length,
     showRoleModalState,
     werewolfTargetId, 
-    witchPotions,
+    witchPotions.antidote,
+    witchPotions.poison,
     guardLastProtectedId, 
-    pendingDeathPlayerIds, 
+    pendingDeathPlayerIds.length, 
     currentPlayerSpeakingId, 
-    currentVotes, 
+    Object.keys(currentVotes).length, 
     humanPlayerId, 
-    seerLastCheck, 
+    seerLastCheck?.targetId, 
     playerToPoisonId, 
     hunterTargetId,
-    t, tr
+    t, tr, tts?.isEnabled
   ]);
 }; 

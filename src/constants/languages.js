@@ -201,6 +201,22 @@ export const translations = {
       startSpeaking: '请开始发言...'
     },
 
+    // 语音合成
+    tts: {
+      title: '语音设置',
+      enabled: '启用AI语音',
+      disabled: '禁用AI语音',
+      volume: '音量',
+      speed: '语速',
+      pitch: '音调',
+      testVoice: '测试语音',
+      stopSpeaking: '停止播放',
+      notSupported: '您的浏览器不支持语音合成。',
+      testMessage: '这是一条测试消息，用于检查语音设置。',
+      aiSpeaking: 'AI正在发言...',
+      clickToStop: '点击停止'
+    },
+
     // Error messages
     errors: {
       needTarget: '你需要选择一个目标。',
@@ -241,7 +257,7 @@ export const translations = {
       witchPoisonDecision: '女巫请决定是否使用毒药。',
       witchDone: '女巫行动结束。夜晚结束，天亮了！',
       dayStart: '天亮了。',
-      playerDied: '玩家 {{playerId}} ({{role}}) 在昨晚死亡。',
+      playerDied: '玩家 {{playerId}} 在昨晚死亡。',
       hunterDied: '猎人玩家 {{playerId}} 已死亡，请选择是否开枪。',
       discussionStart: '进入讨论阶段。',
       firstSpeaker: '首先请玩家 {{playerId}} 发言。',
@@ -294,6 +310,67 @@ export const translations = {
       playerVoted: '玩家 {{aiPlayerId}} 投票给玩家 {{targetId}}。',
       playerVotedRandom: '玩家 {{aiPlayerId}} (随机) 投票给玩家 {{targetId}}。',
       playerAbstained: '玩家 {{aiPlayerId}} 弃票 (无有效目标)。'
+    },
+
+    // AI Prompts
+    aiPrompts: {
+      playerInfo: {
+        currentAlivePlayers: '当前存活玩家：',
+        playerEntry: '  - 玩家 {{playerId}} ({{playerType}}，状态：存活，对你的身份：{{roleDisplay}})',
+        human: '人类',
+        ai: 'AI',
+        unknownRole: '未知身份',
+        yourTeammateWerewolf: '{{role}} (你的队友)',
+        werewolfTeammates: '你的狼人队友是：{{teammates}}。',
+        onlyWerewolfLeft: '你是最后一只狼人了。',
+        yourInfo: '你的ID是 {{playerId}}，你的身份是 {{role}}。'
+      },
+      tasks: {
+        werewolfTarget: {
+          question: '狼人任务：现在是夜晚，轮到你行动了。选择一名玩家与你的狼人队友（如果有）一起攻击。主要目标是村民阵营的玩家。你可以攻击任何玩家，但在特殊情况下（比如混淆村民），你可以考虑攻击狼人队友。请只回复目标玩家的ID数字。',
+          format: '请只回复目标玩家的ID数字。'
+        },
+        guardProtect: {
+          question: '守卫任务：现在是夜晚，轮到你行动了。选择一名玩家保护免受狼人攻击。你不能连续两晚保护同一个人。昨晚你保护了{{lastProtected}}。请只回复目标玩家的ID数字。',
+          format: '请只回复目标玩家的ID数字。',
+          noOne: '没有人'
+        },
+        seerCheck: {
+          question: '预言家任务：现在是夜晚，轮到你行动了。选择一名玩家查验他们的身份（村民或狼人）。请只回复目标玩家的ID数字。',
+          format: '请只回复目标玩家的ID数字。'
+        },
+        witchSaveChoice: {
+          question: '女巫任务：狼人攻击了玩家 {{targetId}}。你有解药，{{antidoteStatus}}。你想使用解药拯救玩家 {{targetId}} 吗？请只回复"是"（使用）或"否"（不使用）。',
+          format: '请只回复"是"或"否"。',
+          antidoteNotUsed: '尚未使用',
+          antidoteUsed: '已经使用'
+        },
+        witchPoisonChoice: {
+          question: '女巫任务：你有毒药，{{poisonStatus}}。你想使用毒药今晚杀死一名玩家吗？如果是，请回复目标玩家的ID数字；如果你不想使用毒药，请回复"否"。',
+          format: '如果使用毒药，回复目标玩家的ID数字；如果不使用，回复"否"。',
+          poisonNotUsed: '尚未使用',
+          poisonUsed: '已经使用'
+        },
+        hunterShoot: {
+          question: '猎人任务：你（玩家 {{playerId}}）刚刚死亡！现在你可以激活你的能力开枪并带走一名存活的玩家。选择一名玩家与你一起淘汰，或选择不开枪。如果开枪，只回复目标玩家的ID数字；如果选择不开枪，回复"否"。',
+          format: '如果开枪，回复目标玩家的ID数字；如果不开枪，回复"否"。'
+        },
+        discussionStatement: {
+          question: '讨论阶段：轮到你（玩家 {{playerId}} - {{role}}）发言了。\n\n**重要：请仔细分析历史信息来推理每个玩家的角色！**\n\n分析要点：\n1. **夜间行动模式**：注意谁在夜晚死亡、谁被救、保护是否成功等线索\n2. **发言行为**：分析每个玩家的发言内容、逻辑一致性、是否符合其声称的身份\n3. **投票模式**：观察每个玩家的投票目标和理由，是否有明显的阵营倾向\n4. **时间节点**：关注关键信息披露的时机，真预言家vs假预言家的区别\n5. **互动关系**：注意玩家之间的攻击、保护、支持关系\n\n基于以上分析，你的发言应该：\n- 符合你的身份和阵营目标\n- 如果你是狼人：隐藏身份，误导村民，制造混乱\n- 如果你是村民阵营：分享有用信息，指出可疑行为，推进正确推理\n- 保持发言简洁有力，1-2句话表达核心观点',
+          format: '请直接回复你的发言内容。'
+        },
+        votePlayer: {
+          question: '投票阶段：轮到你（玩家 {{playerId}} - {{role}}）投票了。\n\n**关键：基于完整的历史信息进行角色推理！**\n\n推理框架：\n1. **综合分析**：结合所有轮次的夜间结果、发言内容、投票行为\n2. **行为一致性**：检查每个玩家的行为是否与其声称的身份一致\n3. **阵营判断**：识别谁在推进村民利益，谁在制造混乱或保护狼人\n4. **威胁评估**：考虑谁对你的阵营威胁最大（狼人要除掉神职，村民要找出狼人）\n5. **信息价值**：优先投票给信息价值高的可疑目标\n\n投票策略：\n- 如果你是狼人：投票给对狼人阵营威胁最大的村民（特别是神职）\n- 如果你是村民阵营：投票给通过行为分析最可能是狼人的玩家\n- 避免盲目跟风，要有自己的判断理由\n\n请只回复你投票目标的玩家ID数字。',
+          format: '请只回复目标玩家的ID数字。'
+        }
+      },
+      gameHistory: '--- 当前游戏历史和状态（最新在底部） ---\n\n📊 **历史分析指南**：\n• 夜间死亡模式：分析死亡时间、保护/救治情况，推测角色能力\n• 发言内容分析：注意逻辑矛盾、信息来源、身份声明的真实性\n• 投票行为追踪：观察投票目标选择，识别阵营倾向和保护关系\n• 时机分析：关注关键信息披露时机，区分真假身份\n• 请基于完整历史记录进行推理，而非仅凭当前信息！',
+      yourTask: '--- 你的任务 ---',
+      historyEntry: '{{timestamp}} [{{speaker}}] {{text}}',
+      speakers: {
+        system: '系统',
+        player: '玩家 {{playerId}}'
+      }
     },
 
   },
@@ -490,6 +567,22 @@ export const translations = {
       startSpeaking: 'Please start speaking...'
     },
 
+    // Text-to-speech
+    tts: {
+      title: 'Voice Settings',
+      enabled: 'Enable AI Voice',
+      disabled: 'Disable AI Voice',
+      volume: 'Volume',
+      speed: 'Speed',
+      pitch: 'Pitch',
+      testVoice: 'Test Voice',
+      stopSpeaking: 'Stop Speaking',
+      notSupported: 'Text-to-speech is not supported in your browser.',
+      testMessage: 'This is a test message to check the voice settings.',
+      aiSpeaking: 'AI is speaking...',
+      clickToStop: 'Click to stop'
+    },
+
     // Error messages
     errors: {
       needTarget: 'You need to select a target.',
@@ -520,18 +613,6 @@ export const translations = {
       voted: 'You voted for player {{playerId}}.'
     },
 
-    // Error messages
-    errors: {
-      needTarget: 'You need to select a target.',
-      invalidTarget: 'Invalid target or already dead.',
-      cannotProtectSame: 'Cannot protect the same person for two consecutive nights.',
-      needVoteTarget: 'You need to select a player to vote for.',
-      cannotVoteSelf: 'You cannot vote for yourself.',
-      cannotAction: 'You cannot act.',
-      witchCannotPoisonSelf: 'Witch cannot poison herself.',
-      hunterCannotShootSelf: 'Hunter cannot shoot himself.'
-    },
-
     // Game phases and messages
     gamePhases: {
       nightStart: 'Night falls, please close your eyes. Werewolves, please act.',
@@ -542,7 +623,7 @@ export const translations = {
       witchPoisonDecision: 'Witch, please decide whether to use poison.',
       witchDone: 'Witch actions are done. Night is over!',
       dayStart: 'It\'s morning.',
-      playerDied: 'Player {{playerId}} ({{role}}) died last night.',
+      playerDied: 'Player {{playerId}} died last night.',
       hunterDied: 'Hunter player {{playerId}} is dead. Please decide whether to shoot.',
       discussionStart: 'Enter discussion phase.',
       firstSpeaker: 'First, please speak player {{playerId}}.',
@@ -599,9 +680,70 @@ export const translations = {
 
     // Game initialization
     gameInit: {
-      initializing: '游戏初始化...',
-      randomRoleAssigned: '游戏开始！身份已随机分配。',
-      selectedRoleAssigned: '游戏开始！你选择扮演 {{role}}。'
+      initializing: '正在初始化游戏...',
+      randomRoleAssigned: '游戏开始！角色已随机分配。',
+      selectedRoleAssigned: '游戏开始！你选择扮演{{role}}。'
+    },
+
+    // AI Prompts
+    aiPrompts: {
+      playerInfo: {
+        currentAlivePlayers: 'Current alive players:',
+        playerEntry: '  - Player {{playerId}} ({{playerType}}, Status: Alive, Role to you: {{roleDisplay}})',
+        human: 'Human',
+        ai: 'AI',
+        unknownRole: 'Unknown Role',
+        yourTeammateWerewolf: '{{role}} (your teammate)',
+        werewolfTeammates: 'Your werewolf teammates are: {{teammates}}.',
+        onlyWerewolfLeft: 'You are the only werewolf left.',
+        yourInfo: 'Your ID is {{playerId}}, your role is {{role}}.'
+      },
+      tasks: {
+        werewolfTarget: {
+          question: 'Werewolf task: It\'s night and your turn to act. Choose a player to attack with your werewolf teammates (if any). Primary targets are villager faction players. You can attack any player, but in special situations (like confusing villagers), you may consider attacking werewolf teammates. Please only reply with the target player\'s ID number.',
+          format: 'Please only reply with the target player\'s ID number.'
+        },
+        guardProtect: {
+          question: 'Guard task: It\'s night and your turn to act. Choose a player to protect from werewolf attacks. You cannot protect the same person for two consecutive nights. Last night you protected {{lastProtected}}. Please only reply with the target player\'s ID number.',
+          format: 'Please only reply with the target player\'s ID number.',
+          noOne: 'no one'
+        },
+        seerCheck: {
+          question: 'Seer task: It\'s night and your turn to act. Choose a player to check their identity (villager or werewolf). Please only reply with the target player\'s ID number.',
+          format: 'Please only reply with the target player\'s ID number.'
+        },
+        witchSaveChoice: {
+          question: 'Witch task: Werewolves attacked Player {{targetId}}. You have an antidote, {{antidoteStatus}}. Do you want to use the antidote to save Player {{targetId}}? Please only reply \'yes\' (use) or \'no\' (don\'t use).',
+          format: 'Please only reply \'yes\' or \'no\'.',
+          antidoteNotUsed: 'not used yet',
+          antidoteUsed: 'already used'
+        },
+        witchPoisonChoice: {
+          question: 'Witch task: You have a poison potion, {{poisonStatus}}. Do you want to use the poison to kill a player tonight? If yes, reply with the target player\'s ID number; if you don\'t want to use poison, reply \'no\'.',
+          format: 'If using poison, reply with target player\'s ID number; if not using, reply \'no\'.',
+          poisonNotUsed: 'not used yet',
+          poisonUsed: 'already used'
+        },
+        hunterShoot: {
+          question: 'Hunter task: You (Player {{playerId}}) just died! Now you can activate your ability to shoot and take one alive player with you. Choose a player to eliminate with you, or choose not to shoot. If shooting, reply only with the target player\'s ID number; if choosing not to shoot, reply \'no\'.',
+          format: 'If shooting, reply with target player\'s ID number; if not shooting, reply \'no\'.'
+        },
+        discussionStatement: {
+          question: 'Discussion phase: It\'s your turn (Player {{playerId}} - {{role}}) to speak.\n\n**IMPORTANT: Carefully analyze historical information to deduce each player\'s role!**\n\nAnalysis points:\n1. **Night action patterns**: Notice who died at night, who was saved, whether protections succeeded, etc.\n2. **Speech behavior**: Analyze each player\'s speech content, logical consistency, whether it matches their claimed identity\n3. **Voting patterns**: Observe each player\'s voting targets and reasons, whether they show clear faction tendencies\n4. **Timing**: Pay attention to when key information is revealed, differences between real vs fake seers\n5. **Interaction relationships**: Notice attack, protection, support relationships between players\n\nBased on this analysis, your speech should:\n- Align with your role and faction goals\n- If you\'re a werewolf: Hide identity, mislead villagers, create confusion\n- If you\'re villager faction: Share useful information, point out suspicious behavior, advance correct reasoning\n- Keep speech concise and powerful, 1-2 sentences expressing core viewpoint',
+          format: 'Please directly reply with your speech content.'
+        },
+        votePlayer: {
+          question: 'Voting phase: It\'s your turn (Player {{playerId}} - {{role}}) to vote.\n\n**KEY: Base your decision on complete historical information for role deduction!**\n\nReasoning framework:\n1. **Comprehensive analysis**: Combine all rounds of night results, speech content, voting behavior\n2. **Behavioral consistency**: Check if each player\'s behavior matches their claimed identity\n3. **Faction judgment**: Identify who advances villager interests vs who creates chaos or protects werewolves\n4. **Threat assessment**: Consider who poses the greatest threat to your faction (werewolves eliminate roles, villagers find werewolves)\n5. **Information value**: Prioritize voting for suspicious targets with high information value\n\nVoting strategy:\n- If you\'re a werewolf: Vote for villagers who threaten werewolf faction most (especially special roles)\n- If you\'re villager faction: Vote for players most likely to be werewolves based on behavioral analysis\n- Avoid blind following, have your own reasoning\n\nPlease only reply with your vote target\'s player ID number.',
+          format: 'Please only reply with the target player\'s ID number.'
+        }
+      },
+      gameHistory: '--- Current Game History and State (newest at bottom) ---\n\n📊 **Historical Analysis Guide**:\n• Night death patterns: Analyze death timing, protection/healing situations, deduce role abilities\n• Speech content analysis: Notice logical contradictions, information sources, authenticity of identity claims\n• Voting behavior tracking: Observe voting target choices, identify faction tendencies and protection relationships\n• Timing analysis: Focus on when key information is revealed, distinguish real vs fake identities\n• Base reasoning on complete historical records, not just current information!',
+      yourTask: '--- Your Task ---',
+      historyEntry: '{{timestamp}} [{{speaker}}] {{text}}',
+      speakers: {
+        system: 'System',
+        player: 'Player {{playerId}}'
+      }
     },
 
     // Game initialization
