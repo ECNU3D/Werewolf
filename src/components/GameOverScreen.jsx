@@ -1,4 +1,5 @@
 import { useLanguage } from '../contexts/LanguageContext';
+import GitHubLink from './GitHubLink';
 
 const GameOverScreen = ({ winner, players, onRestart }) => {
   const { t, tr } = useLanguage();
@@ -33,6 +34,11 @@ const GameOverScreen = ({ winner, players, onRestart }) => {
       >
           {t('gameOver.restart')}
       </button>
+
+      {/* GitHub Link */}
+      <div className="mt-8">
+        <GitHubLink size="normal" className="opacity-75 hover:opacity-100" />
+      </div>
     </div>
   );
 };

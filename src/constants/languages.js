@@ -191,6 +191,13 @@ export const translations = {
       unknown: '未知'
     },
 
+    // GitHub link
+    github: {
+      sourceCode: '源代码',
+      viewOnGithub: '在GitHub上查看',
+      giveFeedback: '反馈建议'
+    },
+
     // Speech and interaction
     speech: {
       yourSpeech: '你 (玩家 {{id}}) 说: {{text}}',
@@ -557,6 +564,13 @@ export const translations = {
       player: 'Player',
       you: 'You',
       unknown: 'Unknown'
+    },
+
+    // GitHub link
+    github: {
+      sourceCode: 'Source Code',
+      viewOnGithub: 'View on GitHub',
+      giveFeedback: 'Give Feedback'
     },
 
     // Speech and interaction

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import GitHubLink from './GitHubLink';
 
 const LanguageSelection = ({ onLanguageSelected }) => {
   const { availableLanguages, languageNames, switchLanguage } = useLanguage();
@@ -79,6 +80,11 @@ const LanguageSelection = ({ onLanguageSelected }) => {
             <br />
             <span className="text-blue-300">🎯 English:</span> Select your preferred language to enjoy the game experience
           </p>
+        </div>
+
+        {/* GitHub Link */}
+        <div className="mt-8 text-center">
+          <GitHubLink size="normal" className="opacity-75 hover:opacity-100" />
         </div>
       </div>
 

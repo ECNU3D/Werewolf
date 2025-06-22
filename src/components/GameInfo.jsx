@@ -1,5 +1,6 @@
 import { ROLES, PLAYER_COUNT } from '../constants/gameConstants';
 import { useLanguage } from '../contexts/LanguageContext';
+import GitHubLink from './GitHubLink';
 
 const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
   const { t, tr, tp } = useLanguage();
@@ -129,6 +130,11 @@ const GameInfo = ({ gamePhase, humanPlayer, witchPotions, seerLastCheck }) => {
             </div>
           </div>
         )}
+
+        {/* GitHub Link */}
+        <div className="mt-4 text-center">
+          <GitHubLink size="small" className="opacity-60 hover:opacity-100" />
+        </div>
       </div>
 
       {/* Decorative corner elements */}
