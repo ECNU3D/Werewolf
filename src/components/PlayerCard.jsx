@@ -31,7 +31,7 @@ const PlayerCard = ({
   const voteCount = Object.values(currentVotes).filter(v => v === player.id).length;
   
   // Determine card styling based on player state and role
-  let cardClasses = 'card-enter p-5 border-2 rounded-xl shadow-2xl transition-all duration-500 ease-in-out transform hover:scale-105 relative overflow-hidden backdrop-filter backdrop-blur-sm';
+  let cardClasses = 'card-enter p-2 sm:p-3 md:p-4 lg:p-5 border-2 rounded-lg sm:rounded-xl shadow-lg sm:shadow-2xl transition-all duration-500 ease-in-out transform hover:scale-105 relative overflow-hidden backdrop-filter backdrop-blur-sm';
   let textColor = 'text-gray-100';
   let nameColor = 'text-white';
   let wolfTeammateIcon = '';
@@ -68,7 +68,7 @@ const PlayerCard = ({
   }
 
   if (seerLastCheck?.targetId === player.id && gamePhase === GAME_PHASES.SEER_ACTS && humanPlayer?.role === ROLES.SEER) {
-    cardClasses += ' ring-4 ring-purple-500 ring-opacity-75';
+    cardClasses += ' ring-2 sm:ring-4 ring-purple-500 ring-opacity-75';
   }
 
   if (player.isProtected && player.isAlive) {
@@ -96,68 +96,62 @@ const PlayerCard = ({
         </div>
       )}
 
-      {/* Role icon */}
+      {/* Role icon - smaller on mobile */}
       {showRoleIcon && (
-        <div className="role-icon">
+        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 text-base sm:text-xl md:text-2xl z-10">
           {roleIcon}
         </div>
       )}
 
       {/* Player info */}
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className={`font-bold text-xl ${nameColor} tracking-wide`}>
-            {player.name}
-            {wolfTeammateIcon && <span className="ml-2">{wolfTeammateIcon}</span>}
-            {player.isProtected && player.isAlive && player.role !== ROLES.GUARD && <span className="ml-2">🛡️</span>}
-          </h3>
+        {/* Player name and status - compact layout */}
+        <div className="mb-1 sm:mb-2">
+          <div className="flex items-center justify-between">
+            <h3 className={`font-bold text-sm sm:text-base md:text-lg lg:text-xl ${nameColor} tracking-wide truncate pr-6`}>
+              {player.name}
+              {wolfTeammateIcon && <span className="ml-1">{wolfTeammateIcon}</span>}
+              {player.isProtected && player.isAlive && player.role !== ROLES.GUARD && <span className="ml-1">🛡️</span>}
+            </h3>
+          </div>
+          
+          {/* Status indicator - more compact */}
+          <div className="flex items-center mt-0.5">
+            <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full mr-1.5 ${player.isAlive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+            <span className={`font-medium text-xs ${player.isAlive ? 'text-green-300' : 'text-red-400'}`}>
+              {player.isAlive ? t('playerCard.alive') : t('playerCard.eliminated')}
+            </span>
+          </div>
         </div>
 
-        {/* Status */}
-        <div className="mb-3">
-          {player.isAlive ? (
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-green-300 font-medium">{t('playerCard.alive')}</span>
-            </div>
-          ) : (
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
-              <span className="text-red-400 font-medium">
-                {t('playerCard.eliminated')}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Special role information for human player */}
+        {/* Special role information for human player - compact */}
         {humanPlayer?.role === ROLES.SEER && seerLastCheck?.targetId === player.id && (
-          <div className="mb-3 p-2 bg-purple-600/30 rounded-lg border border-purple-400/50">
-            <span className="text-purple-200 text-sm font-medium">
+          <div className="mb-1 sm:mb-2 p-1.5 sm:p-2 bg-purple-600/30 rounded border border-purple-400/50">
+            <span className="text-purple-200 text-xs font-medium">
               {t('playerCard.checkResult')}: {seerLastCheck.targetRole}
             </span>
           </div>
         )}
 
-        {/* Vote count display during voting */}
-        {gamePhase === GAME_PHASES.VOTING && player.isAlive && (
-          <div className="mb-3">
-            <span className={`text-sm ${textColor}`}>
+        {/* Vote count display during voting - compact */}
+        {gamePhase === GAME_PHASES.VOTING && player.isAlive && voteCount > 0 && (
+          <div className="mb-1 sm:mb-2">
+            <span className={`text-xs ${textColor}`}>
               {t('playerCard.voteCount')}: <span className="font-bold text-yellow-400">{voteCount}</span>
             </span>
           </div>
         )}
 
-        {/* Action buttons */}
+        {/* Action buttons - much more compact */}
         {humanPlayer?.isAlive && (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {/* Werewolf attack button */}
             {gamePhase === GAME_PHASES.WEREWOLVES_ACT && humanPlayer.role === ROLES.WEREWOLF && player.isAlive && player.id !== humanPlayer.id && (
               <button 
                 onClick={() => onPlayerAction('WEREWOLF_TARGET', player.id)} 
-                className="action-button w-full px-3 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 font-medium shadow-lg transform transition-all duration-200"
+                className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded font-medium shadow-lg transform transition-all duration-200 text-xs"
               >
-                🗡️ {t('playerCard.buttons.attack')}
+                🗡️ <span className="hidden sm:inline">{t('playerCard.buttons.attack')}</span>
               </button>
             )}
 
@@ -165,9 +159,9 @@ const PlayerCard = ({
             {gamePhase === GAME_PHASES.GUARD_ACTS && humanPlayer.role === ROLES.GUARD && player.isAlive && player.id !== guardLastProtectedId && (
               <button 
                 onClick={() => onPlayerAction('GUARD_PROTECT', player.id)} 
-                className="action-button w-full px-3 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-medium shadow-lg"
+                className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded font-medium shadow-lg text-xs"
               >
-                🛡️ {t('playerCard.buttons.guard')}
+                🛡️ <span className="hidden sm:inline">{t('playerCard.buttons.guard')}</span>
               </button>
             )}
 
@@ -175,9 +169,9 @@ const PlayerCard = ({
             {gamePhase === GAME_PHASES.SEER_ACTS && humanPlayer.role === ROLES.SEER && player.isAlive && player.id !== humanPlayer.id && (
               <button 
                 onClick={() => onPlayerAction('SEER_CHECK', player.id)} 
-                className="action-button w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 font-medium shadow-lg"
+                className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded font-medium shadow-lg text-xs"
               >
-                🔮 {t('playerCard.buttons.check')}
+                🔮 <span className="hidden sm:inline">{t('playerCard.buttons.check')}</span>
               </button>
             )}
 
@@ -185,9 +179,9 @@ const PlayerCard = ({
             {gamePhase === GAME_PHASES.WITCH_ACTS_POISON && humanPlayer.role === ROLES.WITCH && witchPotions.poison && player.isAlive && player.id !== humanPlayer.id && (
               <button 
                 onClick={() => onPlayerAction('USE_POISON', player.id)} 
-                className="action-button w-full px-3 py-2 bg-gradient-to-r from-purple-800 to-purple-900 text-white rounded-lg hover:from-purple-900 hover:to-purple-800 font-medium shadow-lg"
+                className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-purple-800 to-purple-900 text-white rounded font-medium shadow-lg text-xs"
               >
-                ☠️ {t('playerCard.buttons.poison')}
+                ☠️ <span className="hidden sm:inline">{t('playerCard.buttons.poison')}</span>
               </button>
             )}
 
@@ -195,9 +189,9 @@ const PlayerCard = ({
             {gamePhase === GAME_PHASES.VOTING && player.isAlive && player.id !== humanPlayer.id && !currentVotes[humanPlayer.id] && (
               <button 
                 onClick={() => onPlayerAction('VOTE_PLAYER', player.id)} 
-                className="action-button w-full px-3 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black rounded-lg hover:from-yellow-600 hover:to-yellow-700 font-medium shadow-lg"
+                className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black rounded font-medium shadow-lg text-xs"
               >
-                🗳️ {t('playerCard.buttons.vote')}
+                🗳️ <span className="hidden sm:inline">{t('playerCard.buttons.vote')}</span>
               </button>
             )}
           </div>
@@ -208,16 +202,15 @@ const PlayerCard = ({
         (pendingDeathPlayerIds.includes(humanPlayer.id) || (hunterTargetId !== null && humanPlayer.id === players.find(p => p.id === hunterTargetId && p.role === ROLES.HUNTER && !p.isAlive)?.id)) && (
           <button 
             onClick={() => onPlayerAction('HUNTER_SHOOT', player.id)} 
-            className="action-button w-full px-3 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 font-medium shadow-lg"
+            className="action-button w-full px-1.5 py-1 sm:px-2 sm:py-1.5 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded font-medium shadow-lg text-xs mt-1"
           >
-            🏹 {t('playerCard.buttons.shoot')}
+            🏹 <span className="hidden sm:inline">{t('playerCard.buttons.shoot')}</span>
           </button>
         )}
       </div>
 
-      {/* Decorative elements */}
-      <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-white/5 to-transparent rounded-full pointer-events-none"></div>
-      <div className="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-br from-white/10 to-transparent rounded-full pointer-events-none"></div>
+      {/* Simplified decorative elements */}
+      <div className="absolute -bottom-1 -right-1 w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-white/5 to-transparent rounded-full pointer-events-none"></div>
     </div>
   );
 };

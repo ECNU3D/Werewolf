@@ -9,24 +9,64 @@ export const useTextToSpeech = () => {
   const [pitch, setPitch] = useState(1.0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
+  const [currentSpeechType, setCurrentSpeechType] = useState(null); // 'ai', 'system', 'user'
   const synthRef = useRef(null);
   const { currentLanguage } = useLanguage();
 
   // Initialize speech synthesis
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      synthRef.current = window.speechSynthesis;
-      setIsAvailable(true);
-      
-      // Clear any existing speech when component unmounts
-      return () => {
+    const initializeSpeechSynthesis = () => {
+      try {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
+          synthRef.current = window.speechSynthesis;
+          
+          // Test if speech synthesis is actually functional
+          const testUtterance = new SpeechSynthesisUtterance('');
+          testUtterance.volume = 0;
+          testUtterance.rate = 10;
+          
+          // Add error handler for test utterance
+          testUtterance.onerror = (error) => {
+            console.warn('TTS test failed:', error);
+            setIsAvailable(false);
+          };
+          
+          testUtterance.onend = () => {
+            setIsAvailable(true);
+          };
+          
+          // Try to speak the test utterance
+          synthRef.current.speak(testUtterance);
+          
+          // Fallback - if test doesn't complete in 1 second, assume it works
+          setTimeout(() => {
+            if (synthRef.current) {
+              setIsAvailable(true);
+            }
+          }, 1000);
+          
+        } else {
+          console.warn('Speech synthesis not supported');
+          setIsAvailable(false);
+        }
+      } catch (error) {
+        console.error('Error initializing speech synthesis:', error);
+        setIsAvailable(false);
+      }
+    };
+
+    initializeSpeechSynthesis();
+    
+    // Clear any existing speech when component unmounts
+    return () => {
+      try {
         if (synthRef.current) {
           synthRef.current.cancel();
         }
-      };
-    } else {
-      setIsAvailable(false);
-    }
+      } catch (error) {
+        console.error('Error cleaning up speech synthesis:', error);
+      }
+    };
   }, []);
 
   // Get available voices for current language
@@ -44,76 +84,140 @@ export const useTextToSpeech = () => {
     return languageVoices.length > 0 ? languageVoices : voices;
   }, [currentLanguage]);
 
+  // Wait for voices to be loaded
+  const waitForVoices = useCallback(() => {
+    return new Promise((resolve) => {
+      const voices = synthRef.current?.getVoices() || [];
+      if (voices.length > 0) {
+        resolve(voices);
+      } else {
+        // Wait for voices to load
+        const handleVoicesChanged = () => {
+          const newVoices = synthRef.current?.getVoices() || [];
+          if (newVoices.length > 0) {
+            synthRef.current?.removeEventListener('voiceschanged', handleVoicesChanged);
+            resolve(newVoices);
+          }
+        };
+        
+        synthRef.current?.addEventListener('voiceschanged', handleVoicesChanged);
+        
+        // Fallback timeout
+        setTimeout(() => {
+          synthRef.current?.removeEventListener('voiceschanged', handleVoicesChanged);
+          resolve(synthRef.current?.getVoices() || []);
+        }, 3000);
+      }
+    });
+  }, []);
+
   // Speak text with TTS
   const speak = useCallback((text, options = {}) => {
     if (!isEnabled || !isAvailable || !synthRef.current || !text.trim()) {
       return Promise.resolve();
     }
 
-    return new Promise((resolve, reject) => {
-      // Cancel any ongoing speech and wait a moment for cleanup
-      if (synthRef.current.speaking) {
-        synthRef.current.cancel();
-        // Small delay to ensure previous speech is properly cancelled
-        setTimeout(() => {
+    return new Promise((resolve) => {
+      try {
+        // Cancel any ongoing speech and wait a moment for cleanup
+        if (synthRef.current && synthRef.current.speaking) {
+          synthRef.current.cancel();
+          // Small delay to ensure previous speech is properly cancelled
+          setTimeout(() => {
+            startNewUtterance();
+          }, 100);
+        } else {
           startNewUtterance();
-        }, 100);
-      } else {
-        startNewUtterance();
+        }
+      } catch (error) {
+        console.error('Error in speak function:', error);
+        setIsSpeaking(false);
+        setCurrentSpeechType(null);
+        resolve();
       }
 
-      function startNewUtterance() {
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Set voice based on language preference
-        const voices = getVoices();
-        if (voices.length > 0) {
-          // Prefer higher quality voices (usually local voices)
-          const preferredVoice = voices.find(voice => voice.localService) || voices[0];
-          utterance.voice = preferredVoice;
-        }
-
-        // Set speech parameters
-        utterance.volume = options.volume !== undefined ? options.volume : volume;
-        utterance.rate = options.rate !== undefined ? options.rate : rate;
-        utterance.pitch = options.pitch !== undefined ? options.pitch : pitch;
-        
-        // Set language
-        utterance.lang = currentLanguage === LANGUAGES.CHINESE ? 'zh-CN' : 'en-US';
-
-        // Event handlers
-        utterance.onstart = () => {
-          setIsSpeaking(true);
-        };
-
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          resolve();
-        };
-
-        utterance.onerror = (error) => {
-          setIsSpeaking(false);
-          // Don't reject promise for interruption - it's expected behavior
-          if (error.error === 'interrupted') {
-            console.debug('TTS interrupted (expected behavior):', error);
-            resolve(); // Resolve instead of reject for interruptions
-          } else {
-            console.error('TTS Error:', error);
-            reject(error);
+      async function startNewUtterance() {
+        try {
+          // Wait for voices to be available
+          await waitForVoices();
+          
+          const utterance = new SpeechSynthesisUtterance(text);
+          
+          // Set voice based on language preference
+          const voices = getVoices();
+          if (voices.length > 0) {
+            // Prefer higher quality voices (usually local voices)
+            const preferredVoice = voices.find(voice => voice.localService) || voices[0];
+            utterance.voice = preferredVoice;
           }
-        };
 
-        // Speak the text
-        synthRef.current.speak(utterance);
+          // Set speech parameters
+          utterance.volume = options.volume !== undefined ? options.volume : volume;
+          utterance.rate = options.rate !== undefined ? options.rate : rate;
+          utterance.pitch = options.pitch !== undefined ? options.pitch : pitch;
+          
+          // Set language
+          utterance.lang = currentLanguage === LANGUAGES.CHINESE ? 'zh-CN' : 'en-US';
+
+          // Event handlers
+          utterance.onstart = () => {
+            setIsSpeaking(true);
+            setCurrentSpeechType(options.speechType || 'system');
+          };
+
+          utterance.onend = () => {
+            setIsSpeaking(false);
+            setCurrentSpeechType(null);
+            resolve();
+          };
+
+          utterance.onerror = (error) => {
+            setIsSpeaking(false);
+            setCurrentSpeechType(null);
+            
+            // Better error logging
+            const errorDetails = {
+              type: error.type,
+              error: error.error,
+              message: error.message,
+              timestamp: new Date().toISOString()
+            };
+            
+            // Don't reject promise for interruption - it's expected behavior
+            if (error.error === 'interrupted') {
+              console.debug('TTS interrupted (expected behavior):', errorDetails);
+              resolve(); // Resolve instead of reject for interruptions
+            } else {
+              console.error('TTS Error Details:', errorDetails);
+              console.error('Raw error event:', error);
+              // Resolve instead of reject to prevent unhandled promise rejections
+              resolve();
+            }
+          };
+
+          // Speak the text
+          if (synthRef.current && !synthRef.current.speaking) {
+            synthRef.current.speak(utterance);
+          } else {
+            console.warn('SpeechSynthesis is already speaking or unavailable');
+            resolve();
+          }
+        } catch (error) {
+          console.error('Error in startNewUtterance:', error);
+          setIsSpeaking(false);
+          setCurrentSpeechType(null);
+          resolve();
+        }
       }
     });
-  }, [isEnabled, isAvailable, volume, rate, pitch, currentLanguage, getVoices]);
+  }, [isEnabled, isAvailable, volume, rate, pitch, currentLanguage, getVoices, waitForVoices]);
 
   // Stop current speech
   const stop = useCallback(() => {
     if (synthRef.current) {
       synthRef.current.cancel();
       setIsSpeaking(false);
+      setCurrentSpeechType(null);
     }
   }, []);
 
@@ -138,6 +242,7 @@ export const useTextToSpeech = () => {
       volume: volume,
       rate: role ? adjustedRate * (0.9 + Math.random() * 0.2) : adjustedRate, // Slight variation for roles
       pitch: role ? pitch * (0.8 + Math.random() * 0.4) : pitch, // Voice variation for roles
+      speechType: 'ai'
     };
 
     // Add timeout to prevent hanging
@@ -153,14 +258,15 @@ export const useTextToSpeech = () => {
   }, [speak, volume, rate, pitch, currentLanguage]);
 
   // Speak system announcements
-  const speakSystemMessage = useCallback((message) => {
+  const speakSystemMessage = useCallback((message, options = {}) => {
     if (!message) return Promise.resolve();
     
-    // Use a slightly different voice for system messages
+    // Use appropriate voice settings for system messages
     const systemOptions = {
-      volume: volume * 0.8,
-      rate: rate * 0.9,
-      pitch: pitch * 0.8,
+      volume: options.volume !== undefined ? options.volume : volume * 0.8,
+      rate: options.rate !== undefined ? options.rate : rate * 0.9,
+      pitch: options.pitch !== undefined ? options.pitch : pitch * 0.8,
+      speechType: 'system'
     };
     
     return speak(message, systemOptions);
@@ -171,6 +277,7 @@ export const useTextToSpeech = () => {
     isEnabled,
     isAvailable,
     isSpeaking,
+    currentSpeechType,
     volume,
     rate,
     pitch,

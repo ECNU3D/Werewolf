@@ -66,7 +66,20 @@ export const useGamePhaseManager = (gameLogic, tts) => {
                     break;
                 case GAME_PHASES.NIGHT_START:
                     if (!showRoleModalState) { 
-                        addPublicLog(t('gamePhases.nightStart'), 'system', LOG_CATEGORIES.GAME_FLOW);
+                        const nightMessage = t('gamePhases.nightStart');
+                        addPublicLog(nightMessage, 'system', LOG_CATEGORIES.GAME_FLOW);
+                        
+                        // Auto-announce night start
+                        if (tts && tts.isEnabled && tts.speakSystemMessage) {
+                            setTimeout(async () => {
+                                try {
+                                    await tts.speakSystemMessage(nightMessage);
+                                } catch (error) {
+                                    console.error('Error auto-announcing night start:', error);
+                                }
+                            }, 500);
+                        }
+                        
                         setWerewolfTargetId(null); 
                         setPlayerToPoisonId(null); 
                         setPlayers(prev => prev.map(p => ({ ...p, isProtected: false, isTargetedByWolf: false, isHealedByWitch: false })));
@@ -220,6 +233,18 @@ export const useGamePhaseManager = (gameLogic, tts) => {
                         dayStartMessage += ` ${t('gamePhases.hunterDied', { playerId: hunterDied.id })}`;
                         setHunterTargetId(null);
                         addLog(dayStartMessage, 'system', true);
+                        
+                        // Auto-announce day start with deaths
+                        if (tts && tts.isEnabled && tts.speakSystemMessage) {
+                            setTimeout(async () => {
+                                try {
+                                    await tts.speakSystemMessage(dayStartMessage);
+                                } catch (error) {
+                                    console.error('Error auto-announcing day start with deaths:', error);
+                                }
+                            }, 500);
+                        }
+                        
                         setGamePhase(GAME_PHASES.HUNTER_MAY_ACT);
                     } else {
                         const firstAlive = currentPlayers_local.find(p => p.isAlive);
@@ -227,6 +252,18 @@ export const useGamePhaseManager = (gameLogic, tts) => {
                         dayStartMessage += ` ${t('gamePhases.discussionStart')}`;
                         if (firstAlive) dayStartMessage += ` ${t('gamePhases.firstSpeaker', { playerId: firstAlive.id })}`;
                         addLog(dayStartMessage, 'system', true);
+                        
+                        // Auto-announce day start with discussion
+                        if (tts && tts.isEnabled && tts.speakSystemMessage) {
+                            setTimeout(async () => {
+                                try {
+                                    await tts.speakSystemMessage(dayStartMessage);
+                                } catch (error) {
+                                    console.error('Error auto-announcing day start with discussion:', error);
+                                }
+                            }, 500);
+                        }
+                        
                         setGamePhase(GAME_PHASES.DISCUSSION);
                     }
                     break;

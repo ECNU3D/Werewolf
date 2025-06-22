@@ -274,7 +274,7 @@ const GameComponent = () => {
 
   // Main game UI
   return (
-    <div className="min-h-screen text-gray-100 p-4 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+    <div className="min-h-screen text-gray-100 p-2 sm:p-4 flex flex-col lg:flex-row gap-3 sm:gap-6 relative overflow-hidden">
       {gamePhase === GAME_PHASES.SHOW_ROLE_MODAL && humanPlayer && (
         <RoleModal 
           humanPlayer={humanPlayer} 
@@ -286,7 +286,8 @@ const GameComponent = () => {
         />
       )}
 
-      <div className="md:w-1/3 space-y-6">
+      {/* Left sidebar - Game controls */}
+      <div className="lg:w-1/3 xl:w-1/4 space-y-3 sm:space-y-6 order-2 lg:order-1">
         <GameInfo 
           gamePhase={gamePhase}
           humanPlayer={humanPlayer}
@@ -334,8 +335,9 @@ const GameComponent = () => {
         <GameLog gameLog={gameLog} />
       </div>
 
-      <div className="md:w-2/3">
-        <div className="player-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Right side - Player cards */}
+      <div className="lg:w-2/3 xl:w-3/4 order-1 lg:order-2">
+        <div className="player-grid grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
           {players.map(player => (
             <PlayerCard 
               key={player.id}

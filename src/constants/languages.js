@@ -214,7 +214,9 @@ export const translations = {
       notSupported: '您的浏览器不支持语音合成。',
       testMessage: '这是一条测试消息，用于检查语音设置。',
       aiSpeaking: 'AI正在发言...',
-      clickToStop: '点击停止'
+      clickToStop: '点击停止',
+      playMessage: '播放消息',
+      playLogEntry: '播放日志条目'
     },
 
     // Error messages
@@ -580,7 +582,9 @@ export const translations = {
       notSupported: 'Text-to-speech is not supported in your browser.',
       testMessage: 'This is a test message to check the voice settings.',
       aiSpeaking: 'AI is speaking...',
-      clickToStop: 'Click to stop'
+      clickToStop: 'Click to stop',
+      playMessage: 'Play Message',
+      playLogEntry: 'Play Log Entry'
     },
 
     // Error messages
