@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { GAME_PHASES, ROLES } from './constants/gameConstants';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useGamePhaseManager } from './hooks/useGamePhaseManager';
@@ -15,6 +16,38 @@ import ActionPanel from './components/ActionPanel';
 import GameLog from './components/GameLog';
 import PlayerCard from './components/PlayerCard';
 import TTSControls from './components/TTSControls';
+import AITuningTool from './components/AITuningTool';
+
+// Navigation component
+const Navigation = () => {
+  const location = useLocation();
+  const { t } = useLanguage();
+  
+  return (
+    <nav className="fixed top-4 right-4 z-50 flex gap-2">
+      <Link
+        to="/"
+        className={`px-4 py-2 rounded-lg border transition-all duration-200 ${
+          location.pathname === '/'
+            ? 'bg-purple-600 border-purple-400 text-white'
+            : 'bg-gray-800/80 border-gray-600 text-gray-300 hover:border-purple-400/50 hover:bg-purple-900/30'
+        }`}
+      >
+        🎮 {t('nav.game', 'Game')}
+      </Link>
+      <Link
+        to="/ai-tuning"
+        className={`px-4 py-2 rounded-lg border transition-all duration-200 ${
+          location.pathname === '/ai-tuning'
+            ? 'bg-purple-600 border-purple-400 text-white'
+            : 'bg-gray-800/80 border-gray-600 text-gray-300 hover:border-purple-400/50 hover:bg-purple-900/30'
+        }`}
+      >
+        🔧 {t('nav.aiTuning', 'AI Tuning')}
+      </Link>
+    </nav>
+  );
+};
 
 const GameComponent = () => {
   const { currentLanguage, t, tr, tp } = useLanguage();
@@ -83,180 +116,90 @@ const GameComponent = () => {
 
   // Handle player actions
   const handlePlayerAction = async (actionType, targetId) => {
-    if (winner || isProcessingStepRef.current) return; 
+    if (winner || isProcessingStepRef.current) return;
 
-    isProcessingStepRef.current = true; 
-    console.debug(`[HANDLE_PLAYER_ACTION] Action: ${actionType}, Target: ${targetId}, Current Phase: ${gamePhase}`);
-    const humanPlayer = players.find(p => p.isHuman);
-    if (!humanPlayer || !humanPlayer.isAlive && !(humanPlayer.role === ROLES.HUNTER && gamePhase === GAME_PHASES.HUNTER_MAY_ACT)) {
-        addPublicLog(t('errors.cannotAction'), 'system'); 
-        isProcessingStepRef.current = false;
-        return;
-    }
-    let nextPhaseToSet = null;
-
-    switch (gamePhase) {
-      case GAME_PHASES.WEREWOLVES_ACT:
-        if (humanPlayer.role === ROLES.WEREWOLF) {
-          if (targetId === null || targetId === undefined) { addPublicLog(t('errors.needTarget'), 'system'); isProcessingStepRef.current = false; return; }
+    const humanPlayerObj = players.find(p => p.isHuman);
+    
+    // Log the action
+    logManager.logPlayerAction(humanPlayerId, actionType, targetId);
+    
+    switch (actionType) {
+      case 'vote':
+        gameLogic.handleVote(humanPlayerId, targetId);
+        addPublicLog(t('actions.playerVoted', { voterId: humanPlayerId, targetId }), 'human', LOG_CATEGORIES.VOTING);
+        break;
+        
+      case 'target':
+        if (humanPlayerObj?.role === ROLES.WEREWOLF && gamePhase === GAME_PHASES.NIGHT_WEREWOLF) {
+          gameLogic.setWerewolfTarget(targetId);
+          addNightActionLog(t('actions.werewolfTargeted', { targetId }), 'werewolf', LOG_CATEGORIES.NIGHT_ACTION);
+        }
+        break;
+        
+      case 'check':
+        if (humanPlayerObj?.role === ROLES.SEER && gamePhase === GAME_PHASES.NIGHT_SEER) {
           const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
-          gameLogic.setWerewolfTargetId(targetId);
-          
-          // Log werewolf action - only visible to werewolves
-          addNightActionLog('werewolf_kill', {
-            playerId: humanPlayer.id,
-            targetId: targetId,
-            wasSuccessful: true
-          }, humanPlayer.role);
-          
-          addPrivateLog(t('actions.werewolfSelected', { playerId: targetId }), [ROLES.WEREWOLF], [humanPlayer.id], 'human');
-          nextPhaseToSet = GAME_PHASES.GUARD_ACTS; 
+          const isWerewolf = targetPlayer?.role === ROLES.WEREWOLF;
+          gameLogic.setSeerCheck(targetId, isWerewolf);
+          addPrivateLog(
+            t('actions.seerChecked', { targetId, result: isWerewolf ? t('roles.werewolf') : t('roles.notWerewolf') }), 
+            'seer', 
+            [humanPlayerId], 
+            LOG_CATEGORIES.NIGHT_ACTION
+          );
         }
         break;
-      case GAME_PHASES.GUARD_ACTS:
-        if (humanPlayer.role === ROLES.GUARD) {
-          if (targetId === null || targetId === undefined) { addPublicLog(t('actions.guardNeedTarget'), 'system'); isProcessingStepRef.current = false; return; }
-          if (targetId === guardLastProtectedId) { addPublicLog(t('errors.cannotProtectSame'), 'system'); isProcessingStepRef.current = false; return; }
-          const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
-          setPlayers(prev => prev.map(p => p.id === targetId ? { ...p, isProtected: true } : p));
-          gameLogic.setGuardLastProtectedId(targetId);
-          
-          // Log guard action - only visible to guard
-          addNightActionLog('guard_protect', {
-            playerId: humanPlayer.id,
-            targetId: targetId
-          }, humanPlayer.role);
-          
-          addPrivateLog(t('actions.guardSelected', { playerId: targetId }), [ROLES.GUARD], [humanPlayer.id], 'human');
-          nextPhaseToSet = GAME_PHASES.SEER_ACTS;
+        
+      case 'guard':
+        if (humanPlayerObj?.role === ROLES.GUARD && gamePhase === GAME_PHASES.NIGHT_GUARD) {
+          gameLogic.setGuardProtection(targetId);
+          addNightActionLog(t('actions.guardProtected', { targetId }), 'guard', LOG_CATEGORIES.NIGHT_ACTION);
         }
         break;
-      case GAME_PHASES.SEER_ACTS:
-        if (humanPlayer.role === ROLES.SEER) {
-          if (targetId === null || targetId === undefined) { addPublicLog(t('actions.seerNeedTarget'), 'system'); isProcessingStepRef.current = false; return; }
-          const targetPlayer = players.find(p => p.id === targetId);
-          if (!targetPlayer) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; } 
-          if (!targetPlayer.isAlive) { addPublicLog(t('actions.seerOnlyAlive'), 'system'); isProcessingStepRef.current = false; return;}
-          const revealedRole = targetPlayer.role;
-          gameLogic.setSeerLastCheck({ targetId, targetRole: revealedRole });
-          console.info(`[SEER PRIVATE] Player ${humanPlayerId} (Seer) checked Player ${targetId}: ${revealedRole}`);
-          
-          // Log seer action - only visible to seer, including the result
-          addNightActionLog('seer_check', {
-            playerId: humanPlayer.id,
-            targetId: targetId,
-            reason: tr(revealedRole)
-          }, humanPlayer.role);
-          
-          addPrivateLog(t('actions.seerChecked', { playerId: targetId }), [ROLES.SEER], [humanPlayer.id], 'human'); 
-          nextPhaseToSet = GAME_PHASES.WITCH_ACTS_SAVE;
+        
+      case 'heal':
+        if (humanPlayerObj?.role === ROLES.WITCH && gamePhase === GAME_PHASES.NIGHT_WITCH) {
+          gameLogic.useWitchHeal(targetId);
+          addNightActionLog(t('actions.witchHealed', { targetId }), 'witch', LOG_CATEGORIES.NIGHT_ACTION);
         }
         break;
-      case GAME_PHASES.WITCH_ACTS_SAVE:
-        if (humanPlayer.role === ROLES.WITCH) { 
-          const targetPlayer = players.find(p => p.id === werewolfTargetId);
-          if (actionType === 'USE_ANTIDOTE' && witchPotions.antidote) {
-            if (!targetPlayer || !targetPlayer.isAlive || !werewolfTargetId) {
-                addPublicLog(t('actions.antidoteNoTarget'), 'system');
-            } else {
-                setPlayers(prev => prev.map(p => p.id === werewolfTargetId ? { ...p, isHealedByWitch: true } : p));
-                gameLogic.setWitchPotions(prev => ({ ...prev, antidote: false }));
-                
-                // Log witch save action - only visible to witch
-                addNightActionLog('witch_save', {
-                  playerId: humanPlayer.id,
-                  targetId: werewolfTargetId
-                }, humanPlayer.role);
-                
-                addPrivateLog(t('actions.usedAntidote', { playerId: werewolfTargetId }), [ROLES.WITCH], [humanPlayer.id], 'human');
-            }
-          } else if (actionType === 'SKIP_ANTIDOTE' || !witchPotions.antidote) { 
-            addPrivateLog(t('actions.skippedAntidote', { reason: !witchPotions.antidote ? ` (${t('gameInfo.antidoteUsed')})` : '' }), [ROLES.WITCH], [humanPlayer.id], 'human');
-          }
-        }
-        setGamePhase(GAME_PHASES.WITCH_ACTS_POISON); 
-        isProcessingStepRef.current = false;
-        return; 
-      case GAME_PHASES.WITCH_ACTS_POISON:
-        if (humanPlayer.role === ROLES.WITCH) {
-          if (actionType === 'USE_POISON' && targetId !== null && witchPotions.poison) {
-            const targetPlayer = players.find(p => p.id === targetId);
-            if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
-            if (targetPlayer.id === humanPlayer.id) { addPublicLog(t('errors.witchCannotPoisonSelf'), 'system'); isProcessingStepRef.current = false; return;}
-            gameLogic.setPlayerToPoisonId(targetId);
-            gameLogic.setWitchPotions(prev => ({ ...prev, poison: false }));
-            
-            // Log witch poison action - only visible to witch
-            addNightActionLog('witch_poison', {
-              playerId: humanPlayer.id,
-              targetId: targetId
-            }, humanPlayer.role);
-            
-            addPrivateLog(t('actions.usedPoison', { playerId: targetId }), [ROLES.WITCH], [humanPlayer.id], 'human');
-          } else if (actionType === 'SKIP_POISON' || !witchPotions.poison) {
-            addPrivateLog(t('actions.skippedPoison', { reason: !witchPotions.poison ? ` (${t('gameInfo.poisonUsed')})` : '' }), [ROLES.WITCH], [humanPlayer.id], 'human');
-            gameLogic.setPlayerToPoisonId(null);
-          }
-        }
-        nextPhaseToSet = GAME_PHASES.NIGHT_RESOLUTION;
-        break;
-      case GAME_PHASES.HUNTER_MAY_ACT:
-        const deadOrVotedHunter = players.find(p => p.id === humanPlayer.id && p.role === ROLES.HUNTER && !p.isAlive);
-        if (deadOrVotedHunter) {
-            if (actionType === 'HUNTER_SHOOT' && targetId !== null) {
-                const targetPlayer = players.find(p => p.id === targetId);
-                if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
-                if (targetPlayer.id === deadOrVotedHunter.id) { addPublicLog(t('errors.hunterCannotShootSelf'), 'system'); isProcessingStepRef.current = false; return; }
-                let updatedPlayersState = players.map(p => p.id === targetId ? { ...p, isAlive: false, revealedRole: p.role } : p);
-                setPlayers(updatedPlayersState); 
-                addPublicLog(t('actions.hunterShot', { playerId: targetId, role: tr(targetPlayer.role) }), 'human');
-                gameLogic.setHunterTargetId(targetId); 
-                if (!gameLogic.checkWinConditionWrapper(updatedPlayersState)) { isProcessingStepRef.current = false; return; }
-            } else { 
-                addPublicLog(t('actions.hunterNoShoot'), 'human');
-            }
-        }
-        nextPhaseToSet = GAME_PHASES.DISCUSSION; 
-        break;
-      case GAME_PHASES.VOTING:
-        if (humanPlayer.isAlive) {
-            if (targetId === null || targetId === undefined) { addPublicLog(t('errors.needVoteTarget'), 'system'); isProcessingStepRef.current = false; return; }
-            const targetPlayer = players.find(p => p.id === targetId);
-            if (!targetPlayer || !targetPlayer.isAlive) { addPublicLog(t('errors.invalidTarget'), 'system'); isProcessingStepRef.current = false; return; }
-            if (targetPlayer.id === humanPlayer.id) { addPublicLog(t('errors.cannotVoteSelf'), 'system'); isProcessingStepRef.current = false; return; }
-            
-            gameLogic.setCurrentVotes(prev => ({ ...prev, [humanPlayer.id]: targetId })); 
-            // Use the voting log manager instead of direct logging
-            logManager.addVotingLog(humanPlayer.id, targetId, null); // null for human voter
-            
-            // Ensure AI voting is triggered and awaited here, so the main useEffect can check completion.
-            // The main useEffect will then handle the phase transition.
-            await handleAIVoting(); 
-            isProcessingStepRef.current = false; // Release lock after human action (and subsequent AI voting if any) is done
-            return; // Important: prevent falling through to setGamePhase which is now handled by useEffect
+        
+      case 'poison':
+        if (humanPlayerObj?.role === ROLES.WITCH && gamePhase === GAME_PHASES.NIGHT_WITCH) {
+          gameLogic.useWitchPoison(targetId);
+          addNightActionLog(t('actions.witchPoisoned', { targetId }), 'witch', LOG_CATEGORIES.NIGHT_ACTION);
         }
         break;
+        
+      case 'shoot':
+        if (humanPlayerObj?.role === ROLES.HUNTER && gamePhase === GAME_PHASES.HUNTER_SHOOT) {
+          gameLogic.setHunterTarget(targetId);
+          addPublicLog(t('actions.hunterShot', { targetId }), 'hunter', LOG_CATEGORIES.GAME_EVENT);
+        }
+        break;
+        
       default:
-        isProcessingStepRef.current = false;
-        return;
+        console.warn('Unknown action type:', actionType);
     }
-
-    if (nextPhaseToSet && nextPhaseToSet !== gamePhase) {
-        setGamePhase(nextPhaseToSet);
-    }
-    isProcessingStepRef.current = false;
   };
 
-  // Enhanced initializeGame that includes language
-  const handleStartGame = useCallback((gameConfig) => {
-    const configWithLanguage = {
-      ...gameConfig,
-      language: currentLanguage
-    };
-    initializeGame(configWithLanguage);
-  }, [initializeGame, currentLanguage]);
+  // Handle game start
+  const handleStartGame = useCallback((config) => {
+    const { isRandomRole, selectedRole } = config;
+    initializeGame(isRandomRole, selectedRole);
+    
+    // Log game start
+    logManager.logGameStart();
+    
+    addLog(
+      isRandomRole 
+        ? t('gameInfo.gameStartedRandom')
+        : t('gameInfo.gameStartedSelected', { role: tr(selectedRole) }), 
+      'system', 
+      true,
+      LOG_CATEGORIES.GAME_EVENT
+    );
+  }, [initializeGame, addLog, t, tr]);
 
   // Early returns for different game states
   if (players.length === 0 && gamePhase === GAME_PHASES.SETUP) {
@@ -362,17 +305,35 @@ const GameComponent = () => {
   );
 };
 
-// Main App component with language selection
-const App = () => {
+// Router component with routes
+const RouterComponent = () => {
   const [languageSelected, setLanguageSelected] = useState(false);
 
   return (
+    <Router>
+      <Navigation />
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            !languageSelected ? (
+              <LanguageSelection onLanguageSelected={() => setLanguageSelected(true)} />
+            ) : (
+              <GameComponent />
+            )
+          } 
+        />
+        <Route path="/ai-tuning" element={<AITuningTool />} />
+      </Routes>
+    </Router>
+  );
+};
+
+// Main App component
+const App = () => {
+  return (
     <LanguageProvider>
-      {!languageSelected ? (
-        <LanguageSelection onLanguageSelected={() => setLanguageSelected(true)} />
-      ) : (
-        <GameComponent />
-      )}
+      <RouterComponent />
     </LanguageProvider>
   );
 };

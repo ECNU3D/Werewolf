@@ -260,6 +260,147 @@ yarn start
    - Vote to eliminate a suspected werewolf
 4. The game continues until either all werewolves are eliminated (Villagers win) or the number of werewolves equals the number of villagers (Werewolves win)
 
+## AI Tuning Tool
+
+The AI Tuning Tool is a powerful development feature that allows you to test, analyze, and improve AI behavior in various game scenarios. This tool is essential for fine-tuning AI responses and ensuring optimal gameplay experience.
+
+### Accessing the AI Tuning Tool
+
+1. Start the application in development mode:
+   ```bash
+   npm start
+   ```
+2. Navigate to the AI Tuning Tool in one of these ways:
+   - Visit `http://localhost:3000/ai-tuning` directly in your browser
+   - Use the navigation menu in the top-right corner of the application (🔧 AI Tuning button)
+3. Ensure your AI provider is properly configured (see AI Configuration section above)
+
+### Features Overview
+
+The AI Tuning Tool consists of five main components:
+
+#### 1. Scenario Composer
+Create custom game scenarios to test specific situations:
+
+- **Player Configuration**: Set up players with specific roles (Werewolf, Villager, Seer, Witch, Guard, Hunter)
+- **Game State**: Define which players are alive/dead and which roles are revealed
+- **Game History**: Add previous game events like eliminations, votes, and night actions
+- **Special States**: Configure witch potions, guard protection, seer results, and other special role states
+- **Test Targets**: Define which AI players to test and what actions they should perform
+
+**How to use:**
+1. Click "New Scenario" to start creating a test scenario
+2. Configure players by setting their roles and status
+3. Add game history events to simulate ongoing games
+4. Set up special states for roles like witch and seer
+5. Define test targets specifying which AI should be tested
+6. Save the scenario for future use
+
+#### 2. Test Runner
+Execute AI tests against your created scenarios:
+
+- **Single Tests**: Run individual tests to see how AI responds to specific scenarios
+- **Batch Testing**: Run multiple tests simultaneously for comprehensive analysis
+- **Real-time Results**: View test results as they execute
+- **Performance Metrics**: Track response times and success rates
+- **Response Analysis**: Analyze AI decision-making patterns
+
+**How to use:**
+1. Select a scenario from your saved scenarios
+2. Choose test targets (which AI players to test)
+3. Click "Run Test" for single tests or "Run Batch" for multiple tests
+4. Monitor results in real-time
+5. Analyze response patterns and performance metrics
+
+#### 3. Prompt Editor
+Customize AI prompt templates for different game situations:
+
+- **Game History Templates**: Edit how game events are presented to AI
+- **Player Information Templates**: Modify how player data is formatted
+- **Task-specific Prompts**: Customize prompts for discussion, voting, and night actions
+- **Variable Preview**: See how prompts look with actual game data
+- **Import/Export**: Share prompt configurations across different setups
+
+**How to use:**
+1. Select the prompt category you want to edit
+2. Modify the template text using the built-in editor
+3. Use the variable preview to see how prompts will look with real data
+4. Test your changes with the Test Runner
+5. Export successful prompt configurations for backup
+
+#### 4. Scenario Manager
+Organize and manage your test scenarios:
+
+- **Save/Load**: Persistent storage of scenarios
+- **Import/Export**: Share scenarios with team members
+- **Filtering**: Find scenarios by criteria
+- **Duplication**: Create variations of existing scenarios
+- **Batch Operations**: Perform actions on multiple scenarios
+
+**How to use:**
+1. View all saved scenarios in the manager
+2. Use filters to find specific scenarios
+3. Duplicate scenarios to create variations
+4. Export scenarios for sharing or backup
+5. Import scenarios from other developers
+
+#### 5. Results Analysis
+Analyze AI performance across different scenarios:
+
+- **Success Rates**: Track how often AI makes appropriate decisions
+- **Response Patterns**: Identify common AI behaviors
+- **Performance Trends**: Monitor improvement over time
+- **Comparison Tools**: Compare different prompt configurations
+
+### Best Practices
+
+#### Creating Effective Test Scenarios
+1. **Start Simple**: Begin with basic scenarios before creating complex ones
+2. **Cover Edge Cases**: Test unusual situations that might confuse AI
+3. **Use Real Game Data**: Base scenarios on actual gameplay situations
+4. **Test Different Roles**: Ensure all player roles behave appropriately
+5. **Vary Game States**: Test early game, mid game, and end game scenarios
+
+#### Optimizing AI Prompts
+1. **Be Specific**: Clear, specific instructions work better than vague ones
+2. **Provide Context**: Include relevant game history and player information
+3. **Test Incrementally**: Make small changes and test each modification
+4. **Use Consistent Formatting**: Maintain consistent prompt structure
+5. **Document Changes**: Keep track of what prompt modifications improve performance
+
+#### Running Effective Tests
+1. **Test Systematically**: Run tests in a logical order
+2. **Use Batch Testing**: Test multiple scenarios to identify patterns
+3. **Monitor Performance**: Track response times and success rates
+4. **Iterate Quickly**: Make adjustments based on test results
+5. **Compare Results**: Test the same scenario with different prompt configurations
+
+### Troubleshooting
+
+**Common Issues:**
+
+- **AI Not Responding**: Check your AI provider configuration and API keys
+- **Invalid Responses**: Ensure prompts are clear and well-formatted
+- **Slow Performance**: Consider using faster AI models for testing
+- **Scenario Errors**: Validate that your scenario setup is logically consistent
+- **Test Failures**: Check that test targets match available AI players
+
+**Performance Optimization:**
+
+- Use smaller, faster AI models for initial testing
+- Run batch tests during off-peak hours
+- Cache successful prompt configurations
+- Monitor API usage to avoid rate limits
+
+### Integration with Game Development
+
+The AI Tuning Tool integrates seamlessly with the main game:
+
+- **Live Testing**: Test AI behavior in real game situations
+- **Prompt Updates**: Apply optimized prompts to the live game
+- **Performance Monitoring**: Track AI performance in actual games
+- **Continuous Improvement**: Regularly update and test AI configurations
+
 ## Technologies Used
 
 - React
@@ -529,6 +670,147 @@ yarn start
    - 白天时，讨论并尝试识别狼人
    - 投票淘汰可疑的狼人
 4. 游戏持续进行，直到所有狼人被淘汰（村民获胜）或狼人数量等于村民数量（狼人获胜）
+
+## AI调优工具
+
+AI调优工具是一个强大的开发功能，允许您在各种游戏场景中测试、分析和改进AI行为。此工具对于微调AI响应和确保最佳游戏体验至关重要。
+
+### 访问AI调优工具
+
+1. 以开发模式启动应用程序：
+   ```bash
+   npm start
+   ```
+2. 通过以下方式之一导航到AI调优工具：
+   - 在浏览器中直接访问 `http://localhost:3000/ai-tuning`
+   - 使用应用程序右上角的导航菜单（🔧 AI调优 按钮）
+3. 确保您的AI提供商已正确配置（参见上面的AI配置部分）
+
+### 功能概述
+
+AI调优工具包含五个主要组件：
+
+#### 1. 场景编辑器
+创建自定义游戏场景以测试特定情况：
+
+- **玩家配置**：设置具有特定角色的玩家（狼人、村民、预言家、女巫、守卫、猎人）
+- **游戏状态**：定义哪些玩家活着/死亡以及哪些角色已揭示
+- **游戏历史**：添加以前的游戏事件，如淘汰、投票和夜间行动
+- **特殊状态**：配置女巫药水、守卫保护、预言家结果和其他特殊角色状态
+- **测试目标**：定义要测试哪些AI玩家以及他们应该执行什么行动
+
+**使用方法：**
+1. 点击"新场景"开始创建测试场景
+2. 通过设置角色和状态来配置玩家
+3. 添加游戏历史事件以模拟正在进行的游戏
+4. 为女巫和预言家等角色设置特殊状态
+5. 定义指定要测试哪个AI的测试目标
+6. 保存场景以供将来使用
+
+#### 2. 测试运行器
+对您创建的场景执行AI测试：
+
+- **单项测试**：运行单个测试以查看AI如何响应特定场景
+- **批量测试**：同时运行多个测试进行综合分析
+- **实时结果**：查看测试执行时的结果
+- **性能指标**：跟踪响应时间和成功率
+- **响应分析**：分析AI决策模式
+
+**使用方法：**
+1. 从保存的场景中选择一个场景
+2. 选择测试目标（要测试哪些AI玩家）
+3. 点击"运行测试"进行单项测试，或点击"运行批量"进行多项测试
+4. 实时监控结果
+5. 分析响应模式和性能指标
+
+#### 3. 提示编辑器
+为不同游戏情况自定义AI提示模板：
+
+- **游戏历史模板**：编辑游戏事件如何呈现给AI
+- **玩家信息模板**：修改玩家数据的格式化方式
+- **任务特定提示**：为讨论、投票和夜间行动定制提示
+- **变量预览**：查看提示与实际游戏数据的外观
+- **导入/导出**：在不同设置之间共享提示配置
+
+**使用方法：**
+1. 选择要编辑的提示类别
+2. 使用内置编辑器修改模板文本
+3. 使用变量预览查看提示与真实数据的外观
+4. 使用测试运行器测试您的更改
+5. 导出成功的提示配置进行备份
+
+#### 4. 场景管理器
+组织和管理您的测试场景：
+
+- **保存/加载**：场景的持久存储
+- **导入/导出**：与团队成员分享场景
+- **筛选**：按条件查找场景
+- **复制**：创建现有场景的变体
+- **批量操作**：对多个场景执行操作
+
+**使用方法：**
+1. 在管理器中查看所有保存的场景
+2. 使用过滤器查找特定场景
+3. 复制场景以创建变体
+4. 导出场景进行分享或备份
+5. 从其他开发者导入场景
+
+#### 5. 结果分析
+分析AI在不同场景中的表现：
+
+- **成功率**：跟踪AI做出适当决策的频率
+- **响应模式**：识别常见的AI行为
+- **性能趋势**：监控随时间的改进
+- **比较工具**：比较不同的提示配置
+
+### 最佳实践
+
+#### 创建有效的测试场景
+1. **从简单开始**：在创建复杂场景之前先从基本场景开始
+2. **覆盖边缘情况**：测试可能让AI混淆的异常情况
+3. **使用真实游戏数据**：基于实际游戏情况创建场景
+4. **测试不同角色**：确保所有玩家角色行为适当
+5. **变化游戏状态**：测试游戏早期、中期和后期场景
+
+#### 优化AI提示
+1. **具体明确**：清晰、具体的指令比模糊指令效果更好
+2. **提供上下文**：包含相关的游戏历史和玩家信息
+3. **增量测试**：进行小的更改并测试每个修改
+4. **使用一致格式**：保持一致的提示结构
+5. **记录更改**：跟踪哪些提示修改能提高性能
+
+#### 运行有效测试
+1. **系统化测试**：按逻辑顺序运行测试
+2. **使用批量测试**：测试多个场景以识别模式
+3. **监控性能**：跟踪响应时间和成功率
+4. **快速迭代**：根据测试结果进行调整
+5. **比较结果**：用不同的提示配置测试同一场景
+
+### 故障排除
+
+**常见问题：**
+
+- **AI无响应**：检查您的AI提供商配置和API密钥
+- **无效响应**：确保提示清晰且格式良好
+- **性能缓慢**：考虑使用更快的AI模型进行测试
+- **场景错误**：验证您的场景设置在逻辑上是一致的
+- **测试失败**：检查测试目标是否与可用的AI玩家匹配
+
+**性能优化：**
+
+- 使用更小、更快的AI模型进行初始测试
+- 在非高峰时间运行批量测试
+- 缓存成功的提示配置
+- 监控API使用以避免速率限制
+
+### 与游戏开发的集成
+
+AI调优工具与主游戏无缝集成：
+
+- **实时测试**：在真实游戏情况下测试AI行为
+- **提示更新**：将优化的提示应用到实际游戏中
+- **性能监控**：跟踪AI在实际游戏中的表现
+- **持续改进**：定期更新和测试AI配置
 
 ## 使用的技术
 
